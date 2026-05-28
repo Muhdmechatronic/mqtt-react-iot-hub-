@@ -132,3 +132,30 @@ async function ensureLastPingAtColumn() {
   }
 }
 ensureLastPingAtColumn();
+
+// ── Idempotent enum migration: add 'command' to sensor_data.protocol ──────────
+// Dashboard widgets (Switch, Slider, Push Button) persist their values to
+// sensor_data with protocol='command' so the ESP32 HTTP poll can read them.
+// Without this value in the enum, MySQL silently drops the row and onPin()
+// callbacks never fire.
+async function ensureCommandProtocol() {
+  try {
+    const [cols] = await db.query(
+      `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME   = 'sensor_data'
+         AND COLUMN_NAME  = 'protocol'`
+    );
+    if (cols.length && !cols[0].COLUMN_TYPE.includes("'command'")) {
+      await db.query(
+        `ALTER TABLE sensor_data
+         MODIFY COLUMN protocol
+           ENUM('mqtt','http','websocket','command') NOT NULL DEFAULT 'mqtt'`
+      );
+      console.log("[init] sensor_data.protocol enum extended with 'command'");
+    }
+  } catch (e) {
+    console.warn('[init] ensureCommandProtocol failed:', e.message);
+  }
+}
+ensureCommandProtocol();

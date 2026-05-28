@@ -51,12 +51,22 @@
   #define MYIOT_MAX_CALLBACKS   10    // max on() command handlers
 #endif
 
-// ── Timing defaults ───────────────────────────────────────────────────────────
-#define MYIOT_MQTT_RETRY_MS    5000   // seconds between MQTT reconnect attempts
-#define MYIOT_HEARTBEAT_MS    30000   // online heartbeat interval
-#define MYIOT_PIN_POLL_MS      2000   // HTTP poll interval for subscribed pins
-#define MYIOT_HTTP_TIMEOUT_MS  8000   // per-request HTTP timeout
-#define MYIOT_JSON_DOC_SIZE     512   // ArduinoJson document capacity (bytes)
+// ── Timing defaults (define before #include to override) ─────────────────────
+#ifndef MYIOT_MQTT_RETRY_MS
+  #define MYIOT_MQTT_RETRY_MS    5000
+#endif
+#ifndef MYIOT_HEARTBEAT_MS
+  #define MYIOT_HEARTBEAT_MS    30000
+#endif
+#ifndef MYIOT_PIN_POLL_MS
+  #define MYIOT_PIN_POLL_MS      1000
+#endif
+#ifndef MYIOT_HTTP_TIMEOUT_MS
+  #define MYIOT_HTTP_TIMEOUT_MS  8000
+#endif
+#ifndef MYIOT_JSON_DOC_SIZE
+  #define MYIOT_JSON_DOC_SIZE     512
+#endif
 
 // ── Callback types ────────────────────────────────────────────────────────────
 

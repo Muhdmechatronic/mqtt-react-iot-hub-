@@ -20,33 +20,38 @@ async function list(req, res) {
 
 // HTTP data push (fallback when MQTT unavailable)
 async function pushData(req, res) {
-  const apiKey = req.headers['x-api-key'] || req.body.api_key;
-  if (!apiKey) return res.status(401).json({ error: 'x-api-key header required' });
+  try {
+    const apiKey = req.headers['x-api-key'] || req.body.api_key;
+    if (!apiKey) return res.status(401).json({ error: 'x-api-key header required' });
 
-  const device = await deviceService.getDeviceByApiKey(apiKey);
-  if (!device) return res.status(404).json({ error: 'Device not found' });
+    const device = await deviceService.getDeviceByApiKey(apiKey);
+    if (!device) return res.status(404).json({ error: 'Device not found' });
 
-  const { data, units, timestamp } = req.body;
-  if (!data) return res.status(400).json({ error: 'data object required' });
+    const { data, units, timestamp } = req.body;
+    if (!data) return res.status(400).json({ error: 'data object required' });
 
-  const unified = {
-    device_id:  device.id,
-    protocol:   'http',
-    event_type: 'sensor',
-    data,
-    units:      units || {},
-    timestamp:  timestamp || new Date().toISOString(),
-  };
+    const unified = {
+      device_id:  device.id,
+      protocol:   'http',
+      event_type: 'sensor',
+      data,
+      units:      units || {},
+      timestamp:  timestamp || new Date().toISOString(),
+    };
 
-  await sensorService.saveSensorData(unified);
-  // updatePing sets both last_seen and last_ping_at so the heartbeat worker
-  // can detect this device going silent even when it only uses HTTP POST.
-  await deviceService.updatePing(device.id);
+    await sensorService.saveSensorData(unified);
+    // updatePing sets both last_seen and last_ping_at so the heartbeat worker
+    // can detect this device going silent even when it only uses HTTP POST.
+    await deviceService.updatePing(device.id);
 
-  // Emit realtime update
-  req.io.to(`device:${device.id}`).emit('sensor_update', unified);
+    // Emit realtime update to every browser tab subscribed to this device.
+    req.io.to(`device:${device.id}`).emit('sensor_update', unified);
 
-  res.json({ message: 'Data received', device_id: device.id });
+    res.json({ message: 'Data received', device_id: device.id });
+  } catch (err) {
+    console.error('[pushData] error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }
 
 async function sendCommand(req, res) {

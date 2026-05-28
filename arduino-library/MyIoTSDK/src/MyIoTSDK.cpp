@@ -65,7 +65,11 @@ bool MyIoTClass::writePin(int pin, float value, const char* unit)
   snprintf(buf, sizeof(buf), "%.4g", value);   // compact: no trailing zeros
   char key[8];
   snprintf(key, sizeof(key), "V%d", pin);
-  return _mqttSend(key, buf, unit);
+  bool ok = _mqttSend(key, buf, unit);
+  // Update cache so the next HTTP poll doesn't echo this write back as a callback.
+  int idx = _pinIndex(pin);
+  if (idx >= 0) { _pins[idx].value = value; _pins[idx].hasValue = true; }
+  return ok;
 }
 
 bool MyIoTClass::writePin(int pin, int value, const char* unit)
@@ -74,14 +78,20 @@ bool MyIoTClass::writePin(int pin, int value, const char* unit)
   snprintf(buf, sizeof(buf), "%d", value);
   char key[8];
   snprintf(key, sizeof(key), "V%d", pin);
-  return _mqttSend(key, buf, unit);
+  bool ok = _mqttSend(key, buf, unit);
+  int idx = _pinIndex(pin);
+  if (idx >= 0) { _pins[idx].value = (float)value; _pins[idx].hasValue = true; }
+  return ok;
 }
 
 bool MyIoTClass::writePin(int pin, const char* value, const char* unit)
 {
   char key[8];
   snprintf(key, sizeof(key), "V%d", pin);
-  return _mqttSend(key, value, unit);
+  bool ok = _mqttSend(key, value, unit);
+  int idx = _pinIndex(pin);
+  if (idx >= 0) { _pins[idx].value = atof(value); _pins[idx].hasValue = true; }
+  return ok;
 }
 
 // ── writePins (batch HTTP POST) ───────────────────────────────────────────────
@@ -106,7 +116,15 @@ bool MyIoTClass::writePins(const int*   pins,
 
   String body;
   serializeJson(doc, body);
-  return _httpPost(body);
+  bool ok = _httpPost(body);
+  // Update cache for all pins so they don't echo back as callbacks.
+  if (ok) {
+    for (int i = 0; i < count; i++) {
+      int idx = _pinIndex(pins[i]);
+      if (idx >= 0) { _pins[idx].value = values[i]; _pins[idx].hasValue = true; }
+    }
+  }
+  return ok;
 }
 
 // ── Legacy send() ─────────────────────────────────────────────────────────────

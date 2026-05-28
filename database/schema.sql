@@ -52,7 +52,7 @@ CREATE TABLE sensor_data (
   sensor_type VARCHAR(50) NOT NULL,
   value       DOUBLE NOT NULL,
   unit        VARCHAR(20) NULL,
-  protocol    ENUM('mqtt','http','websocket') NOT NULL DEFAULT 'mqtt',
+  protocol    ENUM('mqtt','http','websocket','command') NOT NULL DEFAULT 'mqtt',
   timestamp   DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   INDEX idx_device_time   (device_id, timestamp),
   INDEX idx_device_sensor (device_id, sensor_type),
