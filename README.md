@@ -394,5 +394,3 @@ This project is released under the [MIT License](LICENSE).
 ---
 
 *Built for students, makers, and small-scale IoT deployments. Inspired by Blynk and ThingsBoard.*
-#   m q t t - r e a c t - i o t - h u b -  
- 
