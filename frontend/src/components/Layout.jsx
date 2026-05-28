@@ -1,40 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
+import {
+  Cpu, Radio, Download, LayoutDashboard, Code2,
+  Activity, Layers, LogOut, ChevronLeft, ChevronRight,
+  ChevronDown, Plus, X, Check, Sun, Moon,
+} from 'lucide-react';
 
-const EXPANDED_W = 224;
+const EXPANDED_W = 232;
 const COLLAPSED_W = 64;
 
-function NavItem({ to, icon, label, collapsed, extra }) {
+function NavItem({ to, icon: Icon, label, collapsed }) {
   return (
     <NavLink
       to={to}
       title={collapsed ? label : undefined}
-      style={({ isActive }) => ({
-        display:        'flex',
-        alignItems:     'center',
-        gap:            10,
-        padding:        '9px 12px',
-        borderRadius:   8,
-        color:          isActive ? '#e2e8f0' : '#94a3b8',
-        background:     isActive ? '#0f172a' : 'none',
-        textDecoration: 'none',
-        fontSize:       14,
-        fontWeight:     isActive ? 600 : 400,
-        whiteSpace:     'nowrap',
-        overflow:       'hidden',
-        transition:     'background 0.15s, color 0.15s',
-        ...(extra || {}),
-      })}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150
+        ${isActive
+          ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium border border-sky-500/20'
+          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 border border-transparent'}`
+      }
     >
-      <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1 }}>{icon}</span>
-      <span style={{
-        opacity:    collapsed ? 0 : 1,
-        maxWidth:   collapsed ? 0 : 160,
-        overflow:   'hidden',
-        transition: 'opacity 0.2s ease, max-width 0.2s ease',
-      }}>
+      <Icon size={16} className="shrink-0" />
+      <span className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]'}`}>
         {label}
       </span>
     </NavLink>
@@ -42,15 +33,16 @@ function NavItem({ to, icon, label, collapsed, extra }) {
 }
 
 export default function Layout() {
-  const { logout } = useAuth();
-  const navigate   = useNavigate();
-  const location   = useLocation();
+  const { logout }         = useAuth();
+  const { dark, toggle }   = useTheme();
+  const navigate           = useNavigate();
+  const location           = useLocation();
 
-  const [collapsed,       setCollapsed]       = useState(false);
-  const [dashboards,      setDashboards]      = useState([]);
-  const [addingDash,      setAddingDash]      = useState(false);
-  const [newDashName,     setNewDashName]     = useState('');
-  const [devZoneOpen,     setDevZoneOpen]     = useState(
+  const [collapsed,   setCollapsed]   = useState(false);
+  const [dashboards,  setDashboards]  = useState([]);
+  const [addingDash,  setAddingDash]  = useState(false);
+  const [newDashName, setNewDashName] = useState('');
+  const [devZoneOpen, setDevZoneOpen] = useState(
     () => location.pathname.startsWith('/developer')
   );
 
@@ -70,7 +62,6 @@ export default function Layout() {
     };
   }, []);
 
-  // Keep Developer Zone expanded when navigating within it
   useEffect(() => {
     if (location.pathname.startsWith('/developer')) setDevZoneOpen(true);
   }, [location.pathname]);
@@ -96,67 +87,35 @@ export default function Layout() {
     if (e.key === 'Escape') { setAddingDash(false); setNewDashName(''); }
   }
 
-  const W = collapsed ? COLLAPSED_W : EXPANDED_W;
   const devZoneActive = location.pathname.startsWith('/developer');
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <aside style={{
-        width:          W,
-        minWidth:       W,
-        background:     '#111827',
-        borderRight:    '1px solid #1e293b',
-        display:        'flex',
-        flexDirection:  'column',
-        transition:     'width 0.25s cubic-bezier(.4,0,.2,1), min-width 0.25s cubic-bezier(.4,0,.2,1)',
-        overflow:       'hidden',
-        position:       'relative',
-        zIndex:         10,
-      }}>
-        {/* Logo row */}
-        <div style={{
-          display:     'flex',
-          alignItems:  'center',
-          gap:         10,
-          padding:     '20px 14px 16px',
-          borderBottom:'1px solid #1e293b',
-          whiteSpace:  'nowrap',
-          overflow:    'hidden',
-        }}>
-          <span style={{ fontSize: 20, flexShrink: 0 }}>🌐</span>
-          <span style={{
-            fontSize:   16,
-            fontWeight: 800,
-            color:      '#38bdf8',
-            opacity:    collapsed ? 0 : 1,
-            maxWidth:   collapsed ? 0 : 160,
-            overflow:   'hidden',
-            transition: 'opacity 0.2s ease, max-width 0.2s ease',
-          }}>
-            IoT Platform
-          </span>
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
+      <aside
+        style={{ width: collapsed ? COLLAPSED_W : EXPANDED_W, minWidth: collapsed ? COLLAPSED_W : EXPANDED_W }}
+        className="flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-250 overflow-hidden relative z-10 shadow-sm dark:shadow-none"
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-500/30 flex items-center justify-center shrink-0">
+            <Cpu size={16} className="text-sky-500 dark:text-sky-400" />
+          </div>
+          <div className={`overflow-hidden transition-all duration-200 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]'}`}>
+            <div className="text-sm font-bold text-slate-900 dark:text-white whitespace-nowrap tracking-tight">IoT Platform</div>
+            <div className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">Device Control</div>
+          </div>
         </div>
 
-        {/* Nav items */}
-        <nav style={{ flex: 1, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', overflowX: 'hidden' }}>
-          <NavItem to="/devices" icon="📡" label="Devices"     collapsed={collapsed} />
-          <NavItem to="/export"  icon="📥" label="Export Data" collapsed={collapsed} />
+        {/* Nav */}
+        <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden scrollbar-thin">
+          <NavItem to="/devices" icon={Radio}    label="Devices"     collapsed={collapsed} />
+          <NavItem to="/export"  icon={Download} label="Export Data" collapsed={collapsed} />
 
-          {/* Dashboards section */}
-          <div style={{
-            fontSize:   10,
-            color:      '#334155',
-            padding:    '10px 12px 4px',
-            letterSpacing: '1px',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-            overflow:   'hidden',
-            opacity:    collapsed ? 0 : 1,
-            maxHeight:  collapsed ? 0 : 30,
-            transition: 'opacity 0.2s ease, max-height 0.2s ease',
-          }}>
-            Dashboards
+          <div className={`overflow-hidden transition-all duration-200 ${collapsed ? 'opacity-0 max-h-0' : 'opacity-100 max-h-8'}`}>
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-widest px-3 pt-4 pb-1">
+              Dashboards
+            </p>
           </div>
 
           {dashboards.map(d => (
@@ -164,29 +123,15 @@ export default function Layout() {
               key={d.id}
               to={`/dashboard/${d.id}`}
               title={collapsed ? d.name : undefined}
-              style={({ isActive }) => ({
-                display:        'flex',
-                alignItems:     'center',
-                gap:            10,
-                padding:        '8px 12px',
-                borderRadius:   8,
-                color:          isActive ? '#e2e8f0' : '#64748b',
-                background:     isActive ? '#0f172a' : 'none',
-                textDecoration: 'none',
-                fontSize:       13,
-                whiteSpace:     'nowrap',
-                overflow:       'hidden',
-                transition:     'background 0.15s, color 0.15s',
-              })}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 border overflow-hidden
+                ${isActive
+                  ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium border-sky-500/20'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 border-transparent'}`
+              }
             >
-              <span style={{ fontSize: 14, flexShrink: 0 }}>📋</span>
-              <span style={{
-                opacity:    collapsed ? 0 : 1,
-                maxWidth:   collapsed ? 0 : 160,
-                overflow:   'hidden',
-                transition: 'opacity 0.2s ease, max-width 0.2s ease',
-                textOverflow: 'ellipsis',
-              }}>
+              <LayoutDashboard size={14} className="shrink-0" />
+              <span className={`overflow-hidden whitespace-nowrap text-ellipsis transition-all duration-200 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[140px]'}`}>
                 {d.name}
               </span>
             </NavLink>
@@ -194,168 +139,110 @@ export default function Layout() {
 
           {!collapsed && (
             addingDash ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px' }}>
+              <div className="flex items-center gap-1.5 px-1 mt-0.5">
                 <input
                   autoFocus
-                  style={{
-                    flex: 1, background: '#0f172a', border: '1px solid #334155',
-                    borderRadius: 6, color: '#e2e8f0', padding: '5px 8px',
-                    fontSize: 12, outline: 'none',
-                  }}
+                  className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-200 placeholder-slate-400 px-2.5 py-1.5 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/30"
                   placeholder="Dashboard name"
                   value={newDashName}
                   onChange={e => setNewDashName(e.target.value)}
                   onKeyDown={onNewDashKeyDown}
                 />
-                <button
-                  onClick={createDashboard}
-                  style={{ background: '#0ea5e9', border: 'none', borderRadius: 6, color: '#fff', padding: '5px 9px', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0 }}
-                >+</button>
+                <button onClick={createDashboard} className="bg-sky-500 hover:bg-sky-400 text-white rounded-md p-1.5 shrink-0 transition-colors">
+                  <Check size={13} />
+                </button>
+                <button onClick={() => { setAddingDash(false); setNewDashName(''); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-md p-1.5 shrink-0 transition-colors">
+                  <X size={13} />
+                </button>
               </div>
             ) : (
               <button
                 onClick={() => setAddingDash(true)}
-                style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: 12, padding: '6px 12px', textAlign: 'left', borderRadius: 8 }}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:text-sky-500 dark:hover:text-sky-400 rounded-lg transition-colors"
               >
-                + New Dashboard
+                <Plus size={13} />
+                New Dashboard
               </button>
             )
           )}
 
-          {/* ── Developer Zone ────────────────────────────────────────────────── */}
-          <div style={{ marginTop: 8, borderTop: '1px solid #1e293b', paddingTop: 8 }}>
-            {/* Developer Zone toggle button */}
+          {/* Developer Zone */}
+          <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <button
               title={collapsed ? 'Developer Zone' : undefined}
               onClick={() => {
-                if (collapsed) {
-                  setCollapsed(false);
-                  setDevZoneOpen(true);
-                } else {
-                  setDevZoneOpen(o => !o);
-                }
+                if (collapsed) { setCollapsed(false); setDevZoneOpen(true); }
+                else setDevZoneOpen(o => !o);
               }}
-              style={{
-                display:       'flex',
-                alignItems:    'center',
-                gap:           10,
-                width:         '100%',
-                padding:       '9px 12px',
-                borderRadius:  8,
-                background:    devZoneActive ? '#0f172a' : 'none',
-                border:        'none',
-                color:         devZoneActive ? '#a78bfa' : '#94a3b8',
-                fontSize:      14,
-                fontWeight:    devZoneActive ? 600 : 400,
-                cursor:        'pointer',
-                whiteSpace:    'nowrap',
-                overflow:      'hidden',
-                textAlign:     'left',
-                transition:    'background 0.15s, color 0.15s',
-              }}
+              className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm transition-all duration-150 border
+                ${devZoneActive
+                  ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium border-violet-500/20'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 border-transparent'}`}
             >
-              <span style={{ fontSize: 17, flexShrink: 0 }}>🛠</span>
-              <span style={{
-                flex:       1,
-                opacity:    collapsed ? 0 : 1,
-                maxWidth:   collapsed ? 0 : 160,
-                overflow:   'hidden',
-                transition: 'opacity 0.2s ease, max-width 0.2s ease',
-              }}>
+              <Code2 size={16} className="shrink-0" />
+              <span className={`flex-1 overflow-hidden whitespace-nowrap text-left transition-all duration-200 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[120px]'}`}>
                 Developer Zone
               </span>
               {!collapsed && (
-                <span style={{
-                  fontSize:   11,
-                  color:      '#475569',
-                  transition: 'transform 0.2s',
-                  transform:  devZoneOpen ? 'rotate(90deg)' : 'none',
-                  flexShrink: 0,
-                }}>▶</span>
+                <ChevronDown size={13} className={`text-slate-400 dark:text-slate-600 shrink-0 transition-transform duration-200 ${devZoneOpen ? 'rotate-180' : ''}`} />
               )}
             </button>
 
-            {/* Sub-items */}
-            <div style={{
-              overflow:   'hidden',
-              maxHeight:  (!collapsed && devZoneOpen) ? 120 : 0,
-              opacity:    (!collapsed && devZoneOpen) ? 1 : 0,
-              transition: 'max-height 0.25s ease, opacity 0.2s ease',
-              paddingLeft: 12,
-            }}>
+            <div className={`overflow-hidden transition-all duration-250 pl-3 ${!collapsed && devZoneOpen ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'}`}>
               <NavLink
                 to="/developer/datastreams"
-                style={({ isActive }) => ({
-                  display:        'flex',
-                  alignItems:     'center',
-                  gap:            10,
-                  padding:        '7px 12px',
-                  borderRadius:   8,
-                  color:          isActive ? '#c4b5fd' : '#64748b',
-                  background:     isActive ? '#1e1b4b' : 'none',
-                  textDecoration: 'none',
-                  fontSize:       13,
-                  whiteSpace:     'nowrap',
-                  transition:     'background 0.15s, color 0.15s',
-                  marginTop:      2,
-                })}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] mt-0.5 transition-all duration-150 border
+                  ${isActive
+                    ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 border-transparent'}`
+                }
               >
-                <span style={{ fontSize: 14, flexShrink: 0 }}>⚡</span>
+                <Activity size={14} className="shrink-0" />
                 <span>Datastream Engine</span>
               </NavLink>
 
               <NavLink
                 to="/developer/sandbox"
-                style={({ isActive }) => ({
-                  display:        'flex',
-                  alignItems:     'center',
-                  gap:            10,
-                  padding:        '7px 12px',
-                  borderRadius:   8,
-                  color:          isActive ? '#c4b5fd' : '#64748b',
-                  background:     isActive ? '#1e1b4b' : 'none',
-                  textDecoration: 'none',
-                  fontSize:       13,
-                  whiteSpace:     'nowrap',
-                  transition:     'background 0.15s, color 0.15s',
-                  marginTop:      2,
-                })}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] mt-0.5 transition-all duration-150 border
+                  ${isActive
+                    ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 border-transparent'}`
+                }
               >
-                <span style={{ fontSize: 14, flexShrink: 0 }}>🎨</span>
+                <Layers size={14} className="shrink-0" />
                 <span>Dashboard Sandbox</span>
               </NavLink>
             </div>
           </div>
         </nav>
 
-        {/* Collapse toggle + logout */}
-        <div style={{ padding: '10px 8px', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {/* Footer */}
+        <div className="px-2 py-3 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-1">
+          {/* Theme toggle */}
+          <button
+            onClick={toggle}
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 border border-transparent transition-all duration-150"
+            style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
+          >
+            {dark
+              ? <Sun size={16} className="shrink-0 text-amber-400" />
+              : <Moon size={16} className="shrink-0 text-slate-500" />
+            }
+            <span className={`overflow-hidden whitespace-nowrap transition-all duration-200 text-xs ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[120px]'}`}>
+              {dark ? 'Light Mode' : 'Dark Mode'}
+            </span>
+          </button>
+
           <button
             onClick={handleLogout}
             title={collapsed ? 'Logout' : undefined}
-            style={{
-              display:     'flex',
-              alignItems:  'center',
-              gap:         10,
-              background:  'none',
-              border:      '1px solid #1e293b',
-              borderRadius: 8,
-              color:       '#64748b',
-              padding:     '8px 12px',
-              cursor:      'pointer',
-              fontSize:    13,
-              whiteSpace:  'nowrap',
-              overflow:    'hidden',
-              width:       '100%',
-            }}
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-150"
           >
-            <span style={{ fontSize: 16, flexShrink: 0 }}>⏻</span>
-            <span style={{
-              opacity:    collapsed ? 0 : 1,
-              maxWidth:   collapsed ? 0 : 120,
-              overflow:   'hidden',
-              transition: 'opacity 0.2s ease, max-width 0.2s ease',
-            }}>
+            <LogOut size={16} className="shrink-0" />
+            <span className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[120px]'}`}>
               Logout
             </span>
           </button>
@@ -363,41 +250,19 @@ export default function Layout() {
           <button
             onClick={() => setCollapsed(c => !c)}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            style={{
-              display:        'flex',
-              alignItems:     'center',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              gap:            10,
-              background:     'none',
-              border:         '1px solid #1e293b',
-              borderRadius:   8,
-              color:          '#475569',
-              padding:        '7px 12px',
-              cursor:         'pointer',
-              fontSize:       13,
-              whiteSpace:     'nowrap',
-              overflow:       'hidden',
-              width:          '100%',
-              transition:     'color 0.15s',
-            }}
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 border border-transparent transition-all duration-150"
+            style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
           >
-            <span style={{ fontSize: 16, flexShrink: 0, transform: collapsed ? 'scaleX(-1)' : 'none', transition: 'transform 0.25s' }}>
-              ◀
-            </span>
-            <span style={{
-              opacity:    collapsed ? 0 : 1,
-              maxWidth:   collapsed ? 0 : 120,
-              overflow:   'hidden',
-              transition: 'opacity 0.2s ease, max-width 0.2s ease',
-            }}>
-              Collapse
-            </span>
+            {collapsed
+              ? <ChevronRight size={16} className="shrink-0" />
+              : <><ChevronLeft size={16} className="shrink-0" /><span className="text-xs">Collapse</span></>
+            }
           </button>
         </div>
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <main style={{ flex: 1, padding: 24, overflowY: 'auto', minWidth: 0 }}>
+      <main className="flex-1 overflow-y-auto min-w-0 p-6 bg-slate-50 dark:bg-slate-950">
         <Outlet />
       </main>
     </div>

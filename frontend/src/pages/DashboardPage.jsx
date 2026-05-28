@@ -8,50 +8,28 @@ import { getSocket } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 import WidgetRenderer from '../widgets/WidgetRenderer';
 import WidgetModal from '../components/WidgetModal';
-
-const s = {
-  header:     { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 },
-  titleRow:   { display:'flex', alignItems:'center', gap:12 },
-  title:      { fontSize:20, fontWeight:700, color:'#e2e8f0' },
-  editBadge:  { background:'#0ea5e9', color:'#fff', fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:99 },
-  btnRow:     { display:'flex', gap:8 },
-  btn:        { border:'none', borderRadius:6, color:'#fff', padding:'7px 14px', cursor:'pointer', fontWeight:600, fontSize:13 },
-  btnEdit:    { background:'#475569' },
-  btnEditOn:  { background:'#16a34a' },
-  btnAdd:     { background:'#0ea5e9' },
-  btnDel:     { background:'#7f1d1d', color:'#fca5a5' },
-  widgetShell:{ background:'#1e293b', borderRadius:10, overflow:'hidden', height:'100%', display:'flex', flexDirection:'column', position:'relative' },
-  dragHandle: { height:22, background:'#0f172a', cursor:'grab', display:'flex', alignItems:'center', padding:'0 8px', gap:6, flexShrink:0 },
-  handleDots: { fontSize:10, color:'#334155' },
-  handleType: { fontSize:10, color:'#334155', marginLeft:'auto' },
-  widgetBody: { flex:1, overflow:'hidden', position:'relative' },
-  editOverlay:{ position:'absolute', inset:0, background:'rgba(2,10,20,.55)', display:'flex', alignItems:'center', justifyContent:'center', gap:10, zIndex:10, backdropFilter:'blur(1px)' },
-  overlayBtn: { border:'none', borderRadius:6, color:'#fff', padding:'7px 14px', cursor:'pointer', fontWeight:600, fontSize:13 },
-  editBtn:    { background:'#0ea5e9' },
-  delBtn:     { background:'#ef4444' },
-  empty:      { color:'#475569', fontSize:14, textAlign:'center', paddingTop:80 },
-};
+import {
+  GripVertical, Trash2, Pencil, Plus, Check,
+  LayoutDashboard, AlertTriangle, Layers,
+} from 'lucide-react';
 
 export default function DashboardPage() {
-  const { id }     = useParams();
-  const { token }  = useAuth();
-  const navigate   = useNavigate();
+  const { id }    = useParams();
+  const { token } = useAuth();
+  const navigate  = useNavigate();
 
-  const [widgets,        setWidgets]        = useState([]);
-  const [sensorData,     setSensorData]     = useState({});  // { [deviceId]: { [sensorType]: value } }
-  const [lastEvent,      setLastEvent]      = useState(null);
-  const [editMode,       setEditMode]       = useState(false);
-  const [showModal,      setShowModal]      = useState(false);
-  const [editingWidget,  setEditingWidget]  = useState(null);
-  const [gridWidth,      setGridWidth]      = useState(window.innerWidth - 260);
-  const containerRef                        = useRef(null);
+  const [widgets,       setWidgets]       = useState([]);
+  const [sensorData,    setSensorData]    = useState({});
+  const [lastEvent,     setLastEvent]     = useState(null);
+  const [editMode,      setEditMode]      = useState(false);
+  const [showModal,     setShowModal]     = useState(false);
+  const [editingWidget, setEditingWidget] = useState(null);
+  const [gridWidth,     setGridWidth]     = useState(window.innerWidth - 260);
+  const containerRef                      = useRef(null);
 
-  // ── Responsive grid width ───────────────────────────────────────────────────
   useEffect(() => {
     function onResize() {
-      if (containerRef.current) {
-        setGridWidth(containerRef.current.offsetWidth);
-      }
+      if (containerRef.current) setGridWidth(containerRef.current.offsetWidth);
     }
     const ro = new ResizeObserver(onResize);
     if (containerRef.current) ro.observe(containerRef.current);
@@ -59,7 +37,6 @@ export default function DashboardPage() {
     return () => ro.disconnect();
   }, []);
 
-  // ── Load widgets ────────────────────────────────────────────────────────────
   const loadWidgets = useCallback(() => {
     api.get(`/dashboard/${id}/widgets`).then(r => setWidgets(r.data)).catch(() => {});
   }, [id]);
@@ -72,7 +49,6 @@ export default function DashboardPage() {
     loadWidgets();
   }, [id]);
 
-  // ── WebSocket realtime stream ────────────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
     const socket    = getSocket(token);
@@ -80,7 +56,6 @@ export default function DashboardPage() {
     deviceIds.forEach(did => socket.emit('subscribe_device', { device_id: did }));
 
     function onUpdate(event) {
-      // Keyed by deviceId so multiple devices never overwrite each other
       setSensorData(prev => ({
         ...prev,
         [event.device_id]: { ...(prev[event.device_id] || {}), ...event.data },
@@ -95,10 +70,6 @@ export default function DashboardPage() {
     };
   }, [widgets, token]);
 
-  // ── Commands ────────────────────────────────────────────────────────────────
-  // dataKey is the widget's data_key (e.g. "V5"). When provided, the new value
-  // is immediately reflected in local sensorData (optimistic update) so reading
-  // widgets (LEDs, Gauges) on the same dashboard update without a round-trip.
   async function onCommand(deviceId, command, payload, dataKey) {
     if (dataKey && payload?.value !== undefined) {
       setSensorData(prev => ({
@@ -108,10 +79,9 @@ export default function DashboardPage() {
     }
     try {
       await api.post('/device/command', { device_id: deviceId, command, payload, data_key: dataKey });
-    } catch { /* optimistic update already applied; hardware delivery is best-effort */ }
+    } catch { /* optimistic update already applied */ }
   }
 
-  // ── Layout persistence (fire only on drag/resize end) ──────────────────────
   async function saveLayout(layout) {
     try {
       await Promise.all(layout.map(item =>
@@ -120,7 +90,6 @@ export default function DashboardPage() {
     } catch { /* ignore transient errors */ }
   }
 
-  // ── Widget CRUD ─────────────────────────────────────────────────────────────
   async function handleDeleteDashboard() {
     if (!window.confirm('Delete this entire dashboard? All widgets will be removed. This cannot be undone.')) return;
     try {
@@ -147,7 +116,6 @@ export default function DashboardPage() {
     loadWidgets();
   }
 
-  // ── Grid layout ─────────────────────────────────────────────────────────────
   const layout = widgets.map(w => ({
     i: String(w.id),
     x: w.position_x, y: w.position_y,
@@ -158,31 +126,62 @@ export default function DashboardPage() {
   return (
     <div ref={containerRef}>
       {/* Header */}
-      <div style={s.header}>
-        <div style={s.titleRow}>
-          <div style={s.title}>Dashboard</div>
-          {editMode && <span style={s.editBadge}>EDIT MODE</span>}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+            <LayoutDashboard size={15} className="text-sky-400" />
+          </div>
+          <h1 className="text-lg font-semibold text-slate-100">Dashboard</h1>
+          {editMode && (
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2.5 py-0.5">
+              <Pencil size={10} />
+              EDIT MODE
+            </span>
+          )}
         </div>
-        <div style={s.btnRow}>
-          <button style={{ ...s.btn, ...s.btnDel }} onClick={handleDeleteDashboard}>
-            🗑 Delete
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDeleteDashboard}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all duration-150"
+          >
+            <Trash2 size={14} />
+            Delete
           </button>
           <button
-            style={{ ...s.btn, ...(editMode ? s.btnEditOn : s.btnEdit) }}
             onClick={() => setEditMode(e => !e)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 border
+              ${editMode
+                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20'
+                : 'text-slate-300 bg-slate-800 border-slate-700 hover:bg-slate-700'}`}
           >
-            {editMode ? '✓ Done Editing' : '✏ Edit Layout'}
+            {editMode ? <><Check size={14} /> Done</> : <><Pencil size={14} /> Edit Layout</>}
           </button>
-          <button style={{ ...s.btn, ...s.btnAdd }} onClick={openCreate}>
-            + Add Widget
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-sky-500 hover:bg-sky-400 border border-sky-400/30 transition-all duration-150 shadow-lg shadow-sky-500/20"
+          >
+            <Plus size={14} />
+            Add Widget
           </button>
         </div>
       </div>
 
       {/* Empty state */}
       {widgets.length === 0 && (
-        <div style={s.empty}>
-          No widgets yet — click <strong>+ Add Widget</strong> to get started.
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-4">
+            <Layers size={24} className="text-slate-600" />
+          </div>
+          <p className="text-slate-400 font-medium mb-1">No widgets yet</p>
+          <p className="text-sm text-slate-600 mb-5">Add your first widget to start monitoring your devices</p>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-sky-500 hover:bg-sky-400 transition-colors"
+          >
+            <Plus size={14} />
+            Add Widget
+          </button>
         </div>
       )}
 
@@ -201,20 +200,29 @@ export default function DashboardPage() {
         margin={[10, 10]}
       >
         {widgets.map(w => (
-          <div key={String(w.id)} style={s.widgetShell}>
+          <div
+            key={String(w.id)}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col relative h-full"
+          >
             {/* Drag handle */}
-            <div className="drag-handle" style={{ ...s.dragHandle, cursor: editMode ? 'grab' : 'default' }}>
-              <span style={s.handleDots}>⣿</span>
-              <span style={{ fontSize:11, color:'#475569', flex:1 }}>{w.title}</span>
-              <span style={s.handleType}>{w.type}</span>
+            <div
+              className={`drag-handle flex items-center gap-2 px-3 h-8 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/50 shrink-0 ${editMode ? 'cursor-grab' : 'cursor-default'}`}
+            >
+              <GripVertical size={13} className="text-slate-400 dark:text-slate-600 shrink-0" />
+              <span className="text-xs text-slate-600 dark:text-slate-400 flex-1 truncate font-medium">{w.title}</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono shrink-0">{w.type}</span>
             </div>
 
-            {/* Widget body + edit overlay — only Delete available; all config is in Sandbox */}
-            <div style={s.widgetBody}>
+            {/* Widget body */}
+            <div className="flex-1 overflow-hidden relative">
               {editMode && (
-                <div style={s.editOverlay}>
-                  <button style={{ ...s.overlayBtn, ...s.delBtn }} onClick={() => handleDelete(w.id)}>
-                    🗑 Delete
+                <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px] flex items-center justify-center gap-2 z-10">
+                  <button
+                    onClick={() => handleDelete(w.id)}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-400 transition-colors shadow-lg"
+                  >
+                    <Trash2 size={14} />
+                    Delete
                   </button>
                 </div>
               )}

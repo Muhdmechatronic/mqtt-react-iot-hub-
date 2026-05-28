@@ -14,6 +14,7 @@ const deviceRoutes = require('./routes/device');
 const sensorRoutes = require('./routes/sensor');
 const dashboardRoutes   = require('./routes/dashboard');
 const datastreamRoutes  = require('./routes/datastream');
+const sandboxRoutes     = require('./routes/sandbox');
 
 // Support comma-separated origins or '*' for LAN / multi-device setups
 const rawOrigin = process.env.FRONTEND_URL || '*';
@@ -40,6 +41,7 @@ app.use('/api/device',    deviceRoutes);
 app.use('/api/sensor',    sensorRoutes);
 app.use('/api/dashboard',   dashboardRoutes);
 app.use('/api/datastream',  datastreamRoutes);
+app.use('/api/sandbox',     sandboxRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date() }));
 
@@ -159,3 +161,23 @@ async function ensureCommandProtocol() {
   }
 }
 ensureCommandProtocol();
+
+// ── Create sandbox_templates table if it doesn't exist ────────────────────────
+async function ensureSandboxTemplatesTable() {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sandbox_templates (
+        id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id      INT UNSIGNED NOT NULL,
+        name         VARCHAR(120) NOT NULL,
+        widgets_json MEDIUMTEXT   NOT NULL,
+        created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_sb_user_name (user_id, name)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[init] sandbox_templates table ready');
+  } catch (e) {
+    console.warn('[init] ensureSandboxTemplatesTable failed:', e.message);
+  }
+}
+ensureSandboxTemplatesTable();

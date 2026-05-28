@@ -1,10 +1,6 @@
-/**
- * SandboxConfigPanel — right-side slide-in configuration panel for the Sandbox builder.
- * Contains all widget forms (Gauge, Slider, Switch, Button, LED, Chart, generic).
- * Receives `mockValue` to show the current simulated live reading.
- */
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { Target, SlidersHorizontal, ToggleRight, AreaChart, Lightbulb, Square, BarChart2, X, Check } from 'lucide-react';
 
 // ── Primitive UI components ───────────────────────────────────────────────────
 
@@ -133,7 +129,7 @@ function ColorPicker({ value, onChange }) {
   );
 }
 
-function DatastreamSelect({ deviceId, value, onChange }) {
+function DatastreamSelect({ deviceId, value, onChange, onUnitResolved }) {
   const [streams, setStreams] = useState([]);
   useEffect(() => {
     if (!deviceId) return;
@@ -141,11 +137,21 @@ function DatastreamSelect({ deviceId, value, onChange }) {
       .then(r => setStreams(r.data))
       .catch(() => {});
   }, [deviceId]);
+
+  function handleChange(e) {
+    const id = e.target.value ? Number(e.target.value) : null;
+    onChange(id);
+    if (onUnitResolved && id) {
+      const ds = streams.find(s => s.id === id);
+      if (ds?.unit) onUnitResolved(ds.unit);
+    }
+  }
+
   return (
     <select
       style={{ ...iStyle, cursor: 'pointer' }}
       value={value ?? ''}
-      onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
+      onChange={handleChange}
       onFocus={e => { e.target.style.borderColor = '#0284c7'; }}
       onBlur={e =>  { e.target.style.borderColor = '#1e293b'; }}
     >
@@ -170,9 +176,22 @@ const DEFAULT_THRESHOLDS = [
 function ColorThresholdSection({ stops, mode, onChange }) {
   const safeStops = stops?.length ? stops : DEFAULT_THRESHOLDS;
   const sorted    = [...safeStops].sort((a, b) => a.threshold - b.threshold);
-  const gradient  = sorted.length > 1
-    ? `linear-gradient(to right, ${sorted.map(s => s.colorHex).join(', ')})`
-    : (sorted[0]?.colorHex || '#38bdf8');
+
+  // Step mode: sharp color blocks; smooth mode: gradient blend
+  let gradient;
+  if (sorted.length < 2) {
+    gradient = sorted[0]?.colorHex || '#38bdf8';
+  } else if (mode === 'step') {
+    const n = sorted.length;
+    const parts = sorted.map((s, i) => {
+      const start = ((i / n) * 100).toFixed(1);
+      const end   = (((i + 1) / n) * 100).toFixed(1);
+      return `${s.colorHex} ${start}%, ${s.colorHex} ${end}%`;
+    });
+    gradient = `linear-gradient(to right, ${parts.join(', ')})`;
+  } else {
+    gradient = `linear-gradient(to right, ${sorted.map(s => s.colorHex).join(', ')})`;
+  }
 
   const update = (idx, updated) => onChange({ stops: safeStops.map((s, i) => i === idx ? updated : s), mode });
   const add    = () => onChange({ stops: [...safeStops, { id: Date.now(), threshold: 0, colorHex: '#38bdf8' }], mode });
@@ -300,18 +319,17 @@ function SliderForm({ s, set, deviceId }) {
         <TextInput value={s.title} onChange={v => set('title', v)} placeholder="e.g. Fan Speed" />
       </Field>
       <Field label="Datastream (Virtual Pin)">
-        <DatastreamSelect deviceId={deviceId} value={s.datastreamId} onChange={v => set('datastreamId', v)} />
+        <DatastreamSelect deviceId={deviceId} value={s.datastreamId} onChange={v => set('datastreamId', v)} onUnitResolved={unit => set('unit', unit)} />
+      </Field>
+      <Field label="Accent Color">
+        <ColorPicker value={s.color ?? '#0ea5e9'} onChange={v => set('color', v)} />
       </Field>
       <ToggleRow label="Send on Release Only" desc="Reduces MQTT traffic during drag"
         checked={s.sendOnReleaseOnly} onChange={v => set('sendOnReleaseOnly', v)} />
       <Field label="Step Size">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {STEP_PRESETS.map(p => (
-            <button
-              key={p}
-              type="button"
-              onMouseDown={e => e.stopPropagation()}
-              onClick={() => set('handleStep', p)}
+            <button key={p} type="button" onMouseDown={e => e.stopPropagation()} onClick={() => set('handleStep', p)}
               style={{
                 padding: '4px 10px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'monospace',
                 background: (s.handleStep ?? 1) === p ? '#0c2a3f' : '#0f172a',
@@ -330,6 +348,42 @@ function SliderForm({ s, set, deviceId }) {
           onChange={v => set('valuePosition', v)}
         />
       </Field>
+    </>
+  );
+}
+
+function ProgressBarForm({ s, set, deviceId }) {
+  return (
+    <>
+      <Field label="Title">
+        <TextInput value={s.title} onChange={v => set('title', v)} placeholder="e.g. Tank Level" />
+      </Field>
+      <Field label="Datastream (Virtual Pin)">
+        <DatastreamSelect deviceId={deviceId} value={s.datastreamId} onChange={v => set('datastreamId', v)} onUnitResolved={unit => set('unit', unit)} />
+      </Field>
+      <ToggleRow label="Color Based on Value" desc="Multi-stop dynamic color mapping"
+        checked={s.colorBasedOnValue}
+        onChange={v => {
+          set('colorBasedOnValue', v);
+          if (v && (!s.colorThresholds || !s.colorThresholds.length)) {
+            set('colorThresholds', DEFAULT_THRESHOLDS.map(t => ({ ...t, id: Date.now() + t.id })));
+            set('gradientMode', 'step');
+          }
+        }}
+      />
+      {s.colorBasedOnValue ? (
+        <div style={{ paddingLeft: 12, borderLeft: '2px solid #1e293b', marginTop: 12 }}>
+          <ColorThresholdSection
+            stops={s.colorThresholds}
+            mode={s.gradientMode ?? 'step'}
+            onChange={({ stops, mode }) => { set('colorThresholds', stops); set('gradientMode', mode); }}
+          />
+        </div>
+      ) : (
+        <Field label="Bar Color">
+          <ColorPicker value={s.colorHex ?? '#0ea5e9'} onChange={v => set('colorHex', v)} />
+        </Field>
+      )}
     </>
   );
 }
@@ -432,7 +486,7 @@ function ChartForm({ s, set, deviceId }) {
         <TextInput value={s.title} onChange={v => set('title', v)} placeholder="e.g. Sensor History" />
       </Field>
       <Field label="Datastream (Virtual Pin)">
-        <DatastreamSelect deviceId={deviceId} value={s.datastreamId} onChange={v => set('datastreamId', v)} />
+        <DatastreamSelect deviceId={deviceId} value={s.datastreamId} onChange={v => set('datastreamId', v)} onUnitResolved={unit => { if (unit && !s.colorHex) return; set('unit', unit); }} />
       </Field>
       <Field label="Chart Type">
         <Segmented
@@ -478,13 +532,13 @@ function GenericForm({ s, set, type }) {
 
 // ── Type registry ─────────────────────────────────────────────────────────────
 const TYPE_META = {
-  gauge:       { icon: '🎯', label: 'Gauge' },
-  slider:      { icon: '🎚', label: 'Slider' },
-  switch:      { icon: '🔘', label: 'Switch' },
-  button:      { icon: '🟦', label: 'Push Button' },
-  linechart:   { icon: '📈', label: 'Line Chart' },
-  led:         { icon: '💡', label: 'LED Indicator' },
-  progressbar: { icon: '📊', label: 'Progress Bar' },
+  gauge:       { Icon: Target,            label: 'Gauge' },
+  slider:      { Icon: SlidersHorizontal, label: 'Slider' },
+  switch:      { Icon: ToggleRight,       label: 'Switch' },
+  button:      { Icon: Square,            label: 'Push Button' },
+  linechart:   { Icon: AreaChart,         label: 'Chart' },
+  led:         { Icon: Lightbulb,         label: 'LED Indicator' },
+  progressbar: { Icon: BarChart2,         label: 'Progress Bar' },
 };
 
 // ── Mock value display ────────────────────────────────────────────────────────
@@ -513,7 +567,7 @@ function LiveSyncBadge({ mockValue, type }) {
 // ── Main panel ────────────────────────────────────────────────────────────────
 export default function SandboxConfigPanel({ widget, deviceId, mockValue, onClose, onSave }) {
   const [settings, setSettings] = useState(() => ({ ...widget.settings }));
-  const meta = TYPE_META[widget.type] || { icon: '⚙', label: widget.type };
+  const meta = TYPE_META[widget.type] || { Icon: null, label: widget.type };
 
   // Reset form when target widget changes
   useEffect(() => {
@@ -535,24 +589,21 @@ export default function SandboxConfigPanel({ widget, deviceId, mockValue, onClos
       display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden',
     }}>
       {/* Header */}
-      <div style={{
-        padding: '14px 16px', borderBottom: '1px solid #1e293b',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-        background: '#0a1525',
-      }}>
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: '#0a1525' }}>
         <div>
-          <div style={{ fontSize: 9, color: '#334155', fontFamily: 'monospace', letterSpacing: '1px', marginBottom: 3 }}>
-            WIDGET SETTINGS
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>
-            {meta.icon} {meta.label}
+          <div style={{ fontSize: 9, color: '#334155', fontFamily: 'monospace', letterSpacing: '1px', marginBottom: 4 }}>WIDGET SETTINGS</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>
+            {meta.Icon && <meta.Icon size={15} style={{ color: '#38bdf8', flexShrink: 0 }} />}
+            {meta.label}
           </div>
         </div>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={onClose}
-          style={{ width: 30, height: 30, background: '#1e293b', border: 'none', borderRadius: 8, color: '#64748b', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >✕</button>
+          style={{ width: 30, height: 30, background: '#1e293b', border: 'none', borderRadius: 8, color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <X size={15} />
+        </button>
       </div>
 
       {/* Scrollable form body */}
@@ -560,14 +611,15 @@ export default function SandboxConfigPanel({ widget, deviceId, mockValue, onClos
         {/* Live sync indicator */}
         <LiveSyncBadge mockValue={mockValue} type={widget.type} />
 
-        {widget.type === 'gauge'      && <GaugeForm       s={settings} set={set} deviceId={deviceId} />}
-        {widget.type === 'slider'     && <SliderForm      s={settings} set={set} deviceId={deviceId} />}
+        {widget.type === 'gauge'       && <GaugeForm       s={settings} set={set} deviceId={deviceId} />}
+        {widget.type === 'slider'      && <SliderForm      s={settings} set={set} deviceId={deviceId} />}
+        {widget.type === 'progressbar' && <ProgressBarForm s={settings} set={set} deviceId={deviceId} />}
         {(widget.type === 'switch' || widget.type === 'button') && (
           <SwitchButtonForm s={settings} set={set} deviceId={deviceId} />
         )}
-        {widget.type === 'led'        && <LEDForm         s={settings} set={set} deviceId={deviceId} />}
-        {widget.type === 'linechart'  && <ChartForm       s={settings} set={set} deviceId={deviceId} />}
-        {!['gauge','slider','switch','button','led','linechart'].includes(widget.type) && (
+        {widget.type === 'led'         && <LEDForm         s={settings} set={set} deviceId={deviceId} />}
+        {widget.type === 'linechart'   && <ChartForm       s={settings} set={set} deviceId={deviceId} />}
+        {!['gauge','slider','progressbar','switch','button','led','linechart'].includes(widget.type) && (
           <GenericForm s={settings} set={set} type={widget.type} />
         )}
       </div>
@@ -586,11 +638,11 @@ export default function SandboxConfigPanel({ widget, deviceId, mockValue, onClos
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={handleApply}
-          style={{ flex: 2, padding: '9px 0', background: '#0284c7', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+          style={{ flex: 2, padding: '9px 0', background: '#0284c7', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           onMouseEnter={e => { e.currentTarget.style.background = '#0369a1'; }}
           onMouseLeave={e => { e.currentTarget.style.background = '#0284c7'; }}
         >
-          ✓ Apply Settings
+          <Check size={14} /> Apply Settings
         </button>
       </div>
     </div>

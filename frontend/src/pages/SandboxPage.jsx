@@ -6,21 +6,19 @@ import 'react-resizable/css/styles.css';
 import api from '../services/api';
 import WidgetRenderer from '../widgets/WidgetRenderer';
 import SandboxConfigPanel from '../components/sandbox/SandboxConfigPanel';
-
-// ── Static preview values used in sandbox (no live data) ─────────────────────
-// Widgets render with these realistic mock values so users see accurate previews.
+import {
+  Target, SlidersHorizontal, ToggleRight, AreaChart,
+  Lightbulb, Square, BarChart2, Save, Pencil, Eye,
+  Layers, Copy, Settings, Trash2, X, Check, Plus,
+  ChevronRight, Cpu, Upload, Download as DownloadIcon, FolderOpen,
+} from 'lucide-react';
 
 const PREVIEW_VALUES = {
-  gauge:       68,
-  slider:      42,
-  switch:      '1',
-  linechart:   null,
-  led:         1,
-  button:      null,
-  progressbar: 72,
+  gauge: 68, slider: 42, switch: '1', linechart: null,
+  led: 1, button: null, progressbar: 72,
 };
 
-// ── Pure SVG/CSS mini previews — used only in the DRAWER ─────────────────────
+// ── Mini SVG previews for the widget drawer ───────────────────────────────────
 
 function GaugeMini() {
   return (
@@ -35,12 +33,12 @@ function GaugeMini() {
 
 function SliderMini() {
   return (
-    <div style={{ width: '100%', padding: '6px 2px' }}>
-      <div style={{ position: 'relative', height: 6, background: '#1e293b', borderRadius: 99 }}>
-        <div style={{ position: 'absolute', left: 0, width: '65%', height: '100%', background: '#0ea5e9', borderRadius: 99 }} />
-        <div style={{ position: 'absolute', left: 'calc(65% - 8px)', top: -5, width: 16, height: 16, background: '#fff', borderRadius: '50%', boxShadow: '0 1px 4px rgba(0,0,0,.4)' }} />
+    <div className="w-full px-0.5 py-1.5">
+      <div className="relative h-1.5 bg-slate-800 rounded-full">
+        <div className="absolute left-0 w-[65%] h-full bg-sky-500 rounded-full" />
+        <div className="absolute top-[-5px] w-4 h-4 bg-white rounded-full shadow-md" style={{ left: 'calc(65% - 8px)' }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, color: '#475569', fontFamily: 'monospace' }}>
+      <div className="flex justify-between mt-1.5 text-[9px] text-slate-600 font-mono">
         <span>0</span><span>65</span><span>100</span>
       </div>
     </div>
@@ -49,40 +47,60 @@ function SliderMini() {
 
 function SwitchMini() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ position: 'relative', width: 36, height: 20, background: '#0ea5e9', borderRadius: 99 }}>
-        <div style={{ position: 'absolute', right: 3, top: 3, width: 14, height: 14, background: '#fff', borderRadius: '50%', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+    <div className="flex items-center gap-2">
+      <div className="relative w-9 h-5 bg-sky-500 rounded-full">
+        <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow" />
       </div>
-      <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>ON</span>
+      <span className="text-[11px] text-slate-400 font-semibold">ON</span>
     </div>
   );
 }
 
 function ChartMini() {
-  const pts = [18, 22, 19, 25, 28, 24, 30, 27, 33, 29, 35, 31];
+  const pts = [14, 20, 17, 26, 24, 30, 27, 34, 30, 38, 34, 40];
   const max = Math.max(...pts), min = Math.min(...pts);
-  const W = 100, H = 38;
-  const path = pts.map((v, i) => {
-    const x = (i / (pts.length - 1)) * W;
-    const y = H - ((v - min) / (max - min)) * (H - 4) - 2;
-    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(' ');
+  const W = 100, H = 40;
+
+  const points = pts.map((v, i) => ({
+    x: (i / (pts.length - 1)) * W,
+    y: H - ((v - min) / (max - min)) * (H - 6) - 3,
+  }));
+
+  // Smooth cubic bezier path
+  let linePath = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 1; i < points.length; i++) {
+    const p0 = points[i - 1], p1 = points[i];
+    const cpX = (p0.x + p1.x) / 2;
+    linePath += ` C ${cpX.toFixed(1)} ${p0.y.toFixed(1)}, ${cpX.toFixed(1)} ${p1.y.toFixed(1)}, ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
+  }
+
+  const last  = points[points.length - 1];
+  const first = points[0];
+  const areaPath = `${linePath} L ${last.x.toFixed(1)} ${H} L ${first.x.toFixed(1)} ${H} Z`;
+
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-      <path d={path} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
+      <defs>
+        <linearGradient id="cmgrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#38bdf8" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#cmgrad)" />
+      <path d={linePath} fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
 function LEDMini() {
   return (
-    <div style={{ width: 32, height: 32, borderRadius: '50%', margin: '0 auto', background: 'radial-gradient(circle at 35% 35%, #86efac, #16a34a)', boxShadow: '0 0 14px #22c55e88, 0 0 4px #22c55e' }} />
+    <div className="w-8 h-8 rounded-full mx-auto" style={{ background: 'radial-gradient(circle at 35% 35%, #86efac, #16a34a)', boxShadow: '0 0 14px #22c55e88, 0 0 4px #22c55e' }} />
   );
 }
 
 function ButtonMini() {
   return (
-    <div style={{ width: '100%', padding: '7px 0', background: '#0284c7', borderRadius: 8, textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#fff', boxShadow: '0 3px 0 #0369a1' }}>
+    <div className="w-full py-1.5 bg-sky-600 rounded-lg text-center text-xs font-bold text-white" style={{ boxShadow: '0 3px 0 #0369a1' }}>
       PUSH
     </div>
   );
@@ -90,11 +108,11 @@ function ButtonMini() {
 
 function ProgressMini() {
   return (
-    <div style={{ width: '100%' }}>
-      <div style={{ height: 10, background: '#1e293b', borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{ width: '72%', height: '100%', background: 'linear-gradient(to right,#0284c7,#38bdf8)', borderRadius: 99 }} />
+    <div className="w-full">
+      <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden">
+        <div className="w-[72%] h-full rounded-full" style={{ background: 'linear-gradient(to right,#0284c7,#38bdf8)' }} />
       </div>
-      <div style={{ textAlign: 'right', marginTop: 4, fontSize: 10, color: '#64748b', fontFamily: 'monospace' }}>72%</div>
+      <div className="text-right mt-1 text-[10px] text-slate-600 font-mono">72%</div>
     </div>
   );
 }
@@ -105,13 +123,13 @@ const MINI_PREVIEWS = {
 };
 
 const WIDGET_META = [
-  { type: 'gauge',       label: 'Gauge',        icon: '🎯', desc: 'Analog dial' },
-  { type: 'slider',      label: 'Slider',        icon: '🎚', desc: 'Range control' },
-  { type: 'switch',      label: 'Switch',        icon: '🔘', desc: 'Toggle relay' },
-  { type: 'linechart',   label: 'Line Chart',    icon: '📈', desc: 'Time series' },
-  { type: 'led',         label: 'LED Indicator', icon: '💡', desc: 'Status light' },
-  { type: 'button',      label: 'Push Button',   icon: '🟦', desc: 'Binary push' },
-  { type: 'progressbar', label: 'Progress Bar',  icon: '📊', desc: 'Fill level' },
+  { type: 'gauge',       label: 'Gauge',        Icon: Target,            desc: 'Analog dial' },
+  { type: 'slider',      label: 'Slider',        Icon: SlidersHorizontal, desc: 'Range control' },
+  { type: 'switch',      label: 'Switch',        Icon: ToggleRight,       desc: 'Toggle relay' },
+  { type: 'linechart',   label: 'Chart',          Icon: AreaChart,         desc: 'Time series' },
+  { type: 'led',         label: 'LED Indicator', Icon: Lightbulb,         desc: 'Status light' },
+  { type: 'button',      label: 'Push Button',   Icon: Square,            desc: 'Binary push' },
+  { type: 'progressbar', label: 'Progress Bar',  Icon: BarChart2,         desc: 'Fill level' },
 ];
 
 const WIDGET_SIZES = {
@@ -126,14 +144,10 @@ const DEFAULT_SETTINGS = {
   linechart:   { title: 'Line Chart',   chartType: 'area', timeWindow: '1h', colorHex: '#38bdf8', xAxisTitle: '', yAxisTitle: '' },
   led:         { title: 'LED',          colorOn: '#22c55e', colorOff: '#1e293b', ledMode: 'binary', threshold: 0.5, pwmMin: 0, pwmMax: 100 },
   button:      { title: 'Push Button',  onValue: '1', offValue: '0', showLabels: false, onLabel: 'ON', offLabel: 'OFF', labelPosition: 'right', hideTitle: false, color: '#0ea5e9' },
-  progressbar: { title: 'Progress',     colorHex: '#38bdf8' },
+  progressbar: { title: 'Progress', colorHex: '#38bdf8', smartColor: true },
 };
 
 const STORAGE_KEY = 'iot_sandbox_widgets';
-
-// ── Adapt sandbox widget → WidgetRenderer format with mock preview data ───────
-// data_key is set to '__preview__' so the renderer gets the static preview value
-// from the mockSensorData object computed per widget in CanvasWidget.
 
 function adaptForRenderer(widget, datastreamMap) {
   const s  = widget.settings || {};
@@ -150,11 +164,20 @@ function adaptForRenderer(widget, datastreamMap) {
     base.gradientMode       = s.gradientMode || 'step';
   }
   if (widget.type === 'slider') {
-    base.color   = '#0ea5e9';
+    base.color   = s.color ?? '#0ea5e9';
     base.min     = ds?.min_value ?? 0;
     base.max     = ds?.max_value ?? 100;
-    base.unit    = ds?.unit || '';
+    base.unit    = s.unit || ds?.unit || '';
     base.command = 'pwm';
+  }
+  if (widget.type === 'progressbar') {
+    base.color             = s.colorHex || s.color || '#0ea5e9';
+    base.colorBasedOnValue = s.colorBasedOnValue || false;
+    base.colorThresholds   = s.colorThresholds || [];
+    base.gradientMode      = s.gradientMode || 'step';
+    base.min               = ds?.min_value ?? 0;
+    base.max               = ds?.max_value ?? 100;
+    base.unit              = s.unit || ds?.unit || '';
   }
   if (widget.type === 'switch' || widget.type === 'button') {
     base.on_value       = s.onValue ?? '1';
@@ -167,24 +190,24 @@ function adaptForRenderer(widget, datastreamMap) {
     base.command        = 'relay';
   }
   if (widget.type === 'led') {
-    base.color    = s.colorOn || '#22c55e';
-    base.ledMode  = s.ledMode || 'binary';
+    base.color     = s.colorOn || '#22c55e';
+    base.ledMode   = s.ledMode || 'binary';
     base.threshold = s.threshold ?? 0.5;
-    base.pwmMin   = s.pwmMin ?? 0;
-    base.pwmMax   = s.pwmMax ?? 100;
+    base.pwmMin    = s.pwmMin ?? 0;
+    base.pwmMax    = s.pwmMax ?? 100;
   }
   if (widget.type === 'linechart') {
-    base.color       = s.colorHex || '#38bdf8';
-    base.xAxisTitle  = s.xAxisTitle || '';
-    base.yAxisTitle  = s.yAxisTitle || '';
+    base.color      = s.colorHex || '#38bdf8';
+    base.xAxisTitle = s.xAxisTitle || '';
+    base.yAxisTitle = s.yAxisTitle || '';
   }
 
   return {
     id:            widget.id,
     type:          widget.type,
     title:         s.title || widget.type,
-    data_key:      '__preview__',   // always resolved from the per-widget mock sensorData
-    device_id:     null,            // no device in sandbox preview
+    data_key:      '__preview__',
+    device_id:     null,
     settings_json: base,
   };
 }
@@ -201,48 +224,34 @@ function DrawerItem({ meta, onDragStart }) {
         e.dataTransfer.setData('text/plain', meta.type);
         onDragStart(meta.type);
       }}
-      style={{
-        background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12,
-        padding: 12, cursor: 'grab', userSelect: 'none', marginBottom: 8,
-        transition: 'border-color 0.15s',
-      }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = '#0369a1'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
+      className="bg-slate-900 border border-slate-800 hover:border-sky-500/40 rounded-xl p-3 cursor-grab select-none mb-2 transition-colors duration-150"
     >
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>
-        {meta.icon} {meta.label}
+      <div className="flex items-center gap-2 mb-2">
+        <meta.Icon size={13} className="text-sky-400 shrink-0" />
+        <span className="text-xs font-semibold text-slate-300">{meta.label}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 42 }}>
-        {Preview && <div style={{ width: '100%' }}><Preview /></div>}
+      <div className="flex items-center justify-center min-h-[42px]">
+        {Preview && <div className="w-full"><Preview /></div>}
       </div>
-      <div style={{ fontSize: 10, color: '#334155', marginTop: 6 }}>{meta.desc}</div>
+      <div className="text-[10px] text-slate-600 mt-1.5">{meta.desc}</div>
     </div>
   );
 }
 
-// ── Canvas widget — full WidgetRenderer with static preview data ──────────────
+// ── Canvas widget ─────────────────────────────────────────────────────────────
 
 function CanvasWidget({ widget, editMode, onCopy, onDelete, onSettings, datastreamMap }) {
   const [hovered, setHovered] = useState(false);
   const adapted = adaptForRenderer(widget, datastreamMap);
-
-  // Static preview sensor data — realistic values, no live streams
   const mockSensorData = { '__preview__': PREVIEW_VALUES[widget.type] };
-
-  // Commands are no-ops in sandbox preview mode
   function noop() {}
 
   return (
     <div
-      style={{
-        width: '100%', height: '100%',
-        background: '#1e293b', border: '1px solid #334155',
-        borderRadius: 12, overflow: 'hidden', position: 'relative',
-      }}
+      className="w-full h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden relative"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Fully rendered widget with preview data */}
       <WidgetRenderer
         widget={adapted}
         sensorData={mockSensorData}
@@ -250,38 +259,24 @@ function CanvasWidget({ widget, editMode, onCopy, onDelete, onSettings, datastre
         onCommand={noop}
       />
 
-      {/* Preview badge */}
       {!editMode && (
-        <div style={{
-          position: 'absolute', bottom: 4, right: 6,
-          fontSize: 9, color: '#1e293b', fontFamily: 'monospace', fontWeight: 700,
-          letterSpacing: '0.5px',
-        }}>
+        <div className="absolute bottom-1 right-1.5 text-[9px] text-slate-700 font-mono font-bold tracking-wide">
           PREVIEW
         </div>
       )}
 
-      {/* Edit mode: dim overlay + action buttons on hover.
-          pointerEvents is 'none' when not hovered so RGL can still receive
-          mousedown on the widget body for drag/resize. Switches to 'auto'
-          only when hovered so the action buttons become clickable. */}
       {editMode && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: hovered ? 'rgba(2,10,20,.6)' : 'rgba(2,10,20,.2)',
-          pointerEvents: hovered ? 'auto' : 'none',
-          transition: 'background 0.15s',
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
-          padding: 6,
-        }}>
-          <div style={{
-            display: 'flex', gap: 4,
-            opacity: hovered ? 1 : 0,
-            transition: 'opacity 0.15s',
-          }}>
-            <ActionBtn title="Duplicate" onClick={() => onCopy(widget)} bg="#0f172a">📋</ActionBtn>
-            <ActionBtn title="Settings"  onClick={() => onSettings(widget)} bg="#0c1a2e">⚙</ActionBtn>
-            <ActionBtn title="Delete"    onClick={() => onDelete(widget.id)} bg="#1c0a0a">🗑</ActionBtn>
+        <div
+          className="absolute inset-0 flex items-start justify-end p-1.5 transition-colors duration-150"
+          style={{
+            background: hovered ? 'rgba(2,10,20,.65)' : 'rgba(2,10,20,.2)',
+            pointerEvents: hovered ? 'auto' : 'none',
+          }}
+        >
+          <div className={`flex gap-1 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+            <ActionBtn title="Duplicate" onClick={() => onCopy(widget)} icon={Copy} />
+            <ActionBtn title="Settings"  onClick={() => onSettings(widget)} icon={Settings} />
+            <ActionBtn title="Delete"    onClick={() => onDelete(widget.id)} icon={Trash2} danger />
           </div>
         </div>
       )}
@@ -289,100 +284,40 @@ function CanvasWidget({ widget, editMode, onCopy, onDelete, onSettings, datastre
   );
 }
 
-function ActionBtn({ title, onClick, bg, children }) {
+function ActionBtn({ title, onClick, icon: Icon, danger }) {
   return (
     <button
       title={title}
       onMouseDown={e => e.stopPropagation()}
       onClick={e => { e.stopPropagation(); onClick(); }}
-      style={{
-        width: 28, height: 28, background: bg, border: '1px solid #334155',
-        borderRadius: 6, color: '#94a3b8', fontSize: 13, cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#64748b'; e.currentTarget.style.color = '#e2e8f0'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = '#334155'; e.currentTarget.style.color = '#94a3b8'; }}
+      className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all duration-150
+        ${danger
+          ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+          : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500'}`}
     >
-      {children}
+      <Icon size={13} />
     </button>
   );
 }
 
-// ── Normalize sandbox settings → widget-readable format ──────────────────────
-// Sandbox stores settings in its own camelCase/prefixed format (colorHex, colorOn,
-// onValue, overrideMinMax, etc.). Each widget component reads specific field names
-// (color, min, max, on_value, etc.). This function bridges the gap at save time so
-// settings_json in the DB is always in the format the widget components expect.
-// The linked datastream (ds) is passed so min/max/unit are resolved from it.
+// ── Normalize settings ────────────────────────────────────────────────────────
 
 function normalizeSettings(widget, ds) {
   const s = widget.settings || {};
-
   switch (widget.type) {
     case 'gauge':
-      return {
-        ...s,
-        color:             s.colorHex || '#38bdf8',
-        min:               s.overrideMinMax ? (s.customMin  ?? 0)   : (ds?.min_value ?? 0),
-        max:               s.overrideMinMax ? (s.customMax  ?? 100)  : (ds?.max_value ?? 100),
-        unit:              ds?.unit || '',
-        colorBasedOnValue: s.colorBasedOnValue  || false,
-        colorThresholds:   s.colorThresholds    || [],
-        gradientMode:      s.gradientMode       || 'step',
-      };
-
+      return { ...s, color: s.colorHex || '#38bdf8', min: s.overrideMinMax ? (s.customMin ?? 0) : (ds?.min_value ?? 0), max: s.overrideMinMax ? (s.customMax ?? 100) : (ds?.max_value ?? 100), unit: ds?.unit || '', colorBasedOnValue: s.colorBasedOnValue || false, colorThresholds: s.colorThresholds || [], gradientMode: s.gradientMode || 'step' };
     case 'slider':
-      return {
-        ...s,
-        color:   '#0ea5e9',
-        min:     ds?.min_value ?? 0,
-        max:     ds?.max_value ?? 100,
-        unit:    ds?.unit || '',
-        command: 'pwm',
-      };
-
+      return { ...s, color: s.color ?? '#0ea5e9', min: ds?.min_value ?? 0, max: ds?.max_value ?? 100, unit: s.unit || ds?.unit || '', command: 'pwm' };
     case 'switch':
     case 'button':
-      return {
-        ...s,
-        on_value:       s.onValue       ?? s.on_value       ?? '1',
-        off_value:      s.offValue      ?? s.off_value      ?? '0',
-        show_labels:    s.showLabels    ?? s.show_labels    ?? false,
-        on_label:       s.onLabel       ?? s.on_label       ?? 'ON',
-        off_label:      s.offLabel      ?? s.off_label      ?? 'OFF',
-        label_position: s.labelPosition ?? s.label_position ?? 'right',
-        hide_title:     s.hideTitle     ?? s.hide_title     ?? false,
-        command:        'relay',
-      };
-
+      return { ...s, on_value: s.onValue ?? s.on_value ?? '1', off_value: s.offValue ?? s.off_value ?? '0', show_labels: s.showLabels ?? s.show_labels ?? false, on_label: s.onLabel ?? s.on_label ?? 'ON', off_label: s.offLabel ?? s.off_label ?? 'OFF', label_position: s.labelPosition ?? s.label_position ?? 'right', hide_title: s.hideTitle ?? s.hide_title ?? false, command: 'relay' };
     case 'led':
-      return {
-        ...s,
-        color:     s.colorOn  || '#22c55e',
-        colorOff:  s.colorOff || '#1e293b',
-        ledMode:   s.ledMode  || 'binary',
-        threshold: s.threshold  ?? 0.5,
-        pwmMin:    s.pwmMin     ?? 0,
-        pwmMax:    s.pwmMax     ?? 100,
-      };
-
+      return { ...s, color: s.colorOn || '#22c55e', colorOff: s.colorOff || '#1e293b', ledMode: s.ledMode || 'binary', threshold: s.threshold ?? 0.5, pwmMin: s.pwmMin ?? 0, pwmMax: s.pwmMax ?? 100 };
     case 'linechart':
-      return {
-        ...s,
-        color:      s.colorHex    || '#38bdf8',
-        xAxisTitle: s.xAxisTitle  || '',
-        yAxisTitle: s.yAxisTitle  || '',
-      };
-
+      return { ...s, color: s.colorHex || '#38bdf8', xAxisTitle: s.xAxisTitle || '', yAxisTitle: s.yAxisTitle || '' };
     case 'progressbar':
-      return {
-        ...s,
-        color: s.colorHex || s.color || '#38bdf8',
-        min:   ds?.min_value ?? 0,
-        max:   ds?.max_value ?? 100,
-        unit:  ds?.unit || '',
-      };
-
+      return { ...s, color: s.colorHex || s.color || '#0ea5e9', colorBasedOnValue: s.colorBasedOnValue || false, colorThresholds: s.colorThresholds || [], gradientMode: s.gradientMode || 'step', min: ds?.min_value ?? 0, max: ds?.max_value ?? 100, unit: s.unit || ds?.unit || '' };
     default:
       return s;
   }
@@ -391,43 +326,48 @@ function normalizeSettings(widget, ds) {
 // ── Save dialog ───────────────────────────────────────────────────────────────
 
 function SaveDialog({ devices, deviceId, widgets, datastreamMap, onClose }) {
-  const navigate             = useNavigate();
-  const [name,    setName]   = useState('My Dashboard');
-  const [selDev,  setSelDev] = useState(deviceId);
-  const [saving,  setSaving] = useState(false);
-  const [err,     setErr]    = useState('');
+  const navigate              = useNavigate();
+  const [existingDashes, setExistingDashes] = useState([]);
+  const [mode,   setMode]   = useState('new');   // 'new' | 'overwrite'
+  const [name,   setName]   = useState('My Dashboard');
+  const [selId,  setSelId]  = useState('');
+  const [selDev, setSelDev] = useState(deviceId);
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState('');
+
+  useEffect(() => {
+    api.get('/dashboard').then(r => setExistingDashes(r.data)).catch(() => {});
+  }, []);
 
   async function handleSave() {
-    if (!name.trim()) return setErr('Dashboard name is required');
+    if (mode === 'new' && !name.trim()) return setErr('Dashboard name is required');
+    if (mode === 'overwrite' && !selId) return setErr('Select a dashboard to overwrite');
     if (!widgets.length) return setErr('Canvas is empty — add at least one widget');
-    setSaving(true);
-    setErr('');
+    setSaving(true); setErr('');
     try {
-      // Backend does upsert: same name for same user → clears & overwrites existing
-      const { data: dash } = await api.post('/dashboard', { name: name.trim() });
-
+      let dashId;
+      if (mode === 'overwrite') {
+        dashId = parseInt(selId);
+        // Delete all existing widgets on this dashboard first
+        const existing = await api.get(`/dashboard/${dashId}/widgets`).catch(() => ({ data: [] }));
+        await Promise.all(existing.data.map(w => api.delete(`/dashboard/widgets/${w.id}`).catch(() => {})));
+      } else {
+        const { data: dash } = await api.post('/dashboard', { name: name.trim() });
+        dashId = dash.id;
+      }
       const devId = selDev ? parseInt(selDev) : null;
       for (const w of widgets) {
-        // Resolve data_key from the linked datastream's virtual_pin.
-        // This is the key that WidgetRenderer uses to look up sensorData and
-        // that writing widgets (Button, Slider, Switch) pass to onCommand so
-        // the backend can broadcast a sensor_update on the same key.
         const ds      = datastreamMap[w.settings?.datastreamId];
         const dataKey = ds ? `V${ds.virtual_pin}` : null;
-
-        await api.post(`/dashboard/${dash.id}/widgets`, {
-          type:          w.type,
-          title:         w.settings?.title || w.type,
-          device_id:     devId,
-          datastream_id: w.settings?.datastreamId || null,
-          data_key:      dataKey,
-          x: w.x, y: w.y, w: w.w, h: w.h,
-          settings:      normalizeSettings(w, ds),
+        await api.post(`/dashboard/${dashId}/widgets`, {
+          type: w.type, title: w.settings?.title || w.type,
+          device_id: devId, datastream_id: w.settings?.datastreamId || null,
+          data_key: dataKey, x: w.x, y: w.y, w: w.w, h: w.h,
+          settings: normalizeSettings(w, ds),
         });
       }
-
       window.dispatchEvent(new CustomEvent('iot:dashboard-created'));
-      navigate(`/dashboard/${dash.id}`);
+      navigate(`/dashboard/${dashId}`);
     } catch (e) {
       setErr(e?.response?.data?.error || 'Failed to save dashboard');
       setSaving(false);
@@ -435,50 +375,257 @@ function SaveDialog({ devices, deviceId, widgets, datastreamMap, onClose }) {
   }
 
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
-      onClick={onClose}
-    >
-      <div
-        style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, width: 380, padding: 24 }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ fontWeight: 700, fontSize: 16, color: '#f1f5f9', marginBottom: 2 }}>Save to Dashboards</div>
-        <div style={{ fontSize: 12, color: '#475569', marginBottom: 20 }}>
-          {widgets.length} widget{widgets.length !== 1 ? 's' : ''} · same name will overwrite existing
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-base font-semibold text-slate-100">Save to Dashboards</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{widgets.length} widget{widgets.length !== 1 ? 's' : ''}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 p-1 rounded-lg hover:bg-slate-800 transition-colors"><X size={16} /></button>
         </div>
 
-        <label style={lbl}>Dashboard Name</label>
-        <input
-          autoFocus style={inp} value={name}
-          onChange={e => setName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSave()}
-          placeholder="e.g. Home Sensors"
-        />
+        {/* Mode toggle */}
+        <div className="flex gap-1.5 mb-4 p-1 bg-slate-800 rounded-lg">
+          {[['new','Create New'],['overwrite','Update Existing']].map(([v,l]) => (
+            <button key={v} type="button" onClick={() => setMode(v)}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${mode === v ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            >{l}</button>
+          ))}
+        </div>
 
-        <label style={lbl}>Bind Device (for live data on dashboard)</label>
-        <select style={inp} value={selDev} onChange={e => setSelDev(e.target.value)}>
-          <option value="">— No device —</option>
-          {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+        <div className="flex flex-col gap-3">
+          {mode === 'new' ? (
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Dashboard name</label>
+              <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSave()} placeholder="e.g. Home Sensors"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Choose dashboard to overwrite</label>
+              <select value={selId} onChange={e => setSelId(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all"
+              >
+                <option value="">— Select dashboard —</option>
+                {existingDashes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          )}
 
-        {err && <div style={{ color: '#f87171', fontSize: 12, marginBottom: 12 }}>{err}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Bind device <span className="text-slate-600">(for live data)</span></label>
+            <select value={selDev} onChange={e => setSelDev(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all"
+            >
+              <option value="">— No device —</option>
+              {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button style={secondaryBtn} onClick={onClose}>Cancel</button>
-          <button style={{ ...primaryBtn, opacity: saving ? 0.6 : 1 }} onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : '✓ Save Dashboard'}
-          </button>
+          {err && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</p>}
+
+          <div className="flex gap-2 mt-1">
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-lg text-sm text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-slate-300 transition-all">Cancel</button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex-[2] flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white bg-sky-500 hover:bg-sky-400 disabled:opacity-60 transition-all shadow-lg shadow-sky-500/20"
+            >
+              <Save size={14} />{saving ? 'Saving…' : mode === 'overwrite' ? 'Overwrite Dashboard' : 'Save Dashboard'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-const lbl         = { display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 };
-const inp         = { display: 'block', width: '100%', background: '#020617', border: '1px solid #1e293b', borderRadius: 8, color: '#e2e8f0', padding: '8px 12px', fontSize: 13, outline: 'none', marginBottom: 14, boxSizing: 'border-box' };
-const primaryBtn  = { background: '#0284c7', border: 'none', borderRadius: 8, color: '#fff', padding: '8px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer' };
-const secondaryBtn = { background: 'none', border: '1px solid #1e293b', borderRadius: 8, color: '#64748b', padding: '8px 18px', fontSize: 13, cursor: 'pointer' };
+// ── Template Loader (dropdown with saved server templates) ────────────────────
+
+function TemplateLoader({ onLoad }) {
+  const [open,      setOpen]      = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [loading,   setLoading]   = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  async function openDropdown() {
+    setOpen(o => !o);
+    if (!templates.length) {
+      setLoading(true);
+      try {
+        const r = await api.get('/sandbox');
+        setTemplates(r.data);
+      } catch {}
+      setLoading(false);
+    }
+  }
+
+  async function loadTemplate(id) {
+    try {
+      const r = await api.get(`/sandbox/${id}`);
+      onLoad(r.data.widgets || []);
+      setOpen(false);
+    } catch { alert('Failed to load template'); }
+  }
+
+  async function deleteTemplate(e, id) {
+    e.stopPropagation();
+    if (!window.confirm('Delete this template?')) return;
+    try {
+      await api.delete(`/sandbox/${id}`);
+      setTemplates(prev => prev.filter(t => t.id !== id));
+    } catch { alert('Failed to delete'); }
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={openDropdown}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors"
+      >
+        <FolderOpen size={13} /> Load Template
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 w-60 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-800">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Saved Templates</p>
+          </div>
+          <div className="max-h-52 overflow-y-auto scrollbar-thin">
+            {loading && <p className="px-3 py-3 text-xs text-slate-500">Loading…</p>}
+            {!loading && !templates.length && (
+              <p className="px-3 py-3 text-xs text-slate-600">No templates saved yet.</p>
+            )}
+            {templates.map(t => (
+              <div
+                key={t.id}
+                onClick={() => loadTemplate(t.id)}
+                className="flex items-center justify-between px-3 py-2.5 hover:bg-slate-800 cursor-pointer group transition-colors"
+              >
+                <div>
+                  <p className="text-sm text-slate-200 font-medium">{t.name}</p>
+                  <p className="text-[10px] text-slate-600 mt-0.5">{new Date(t.created_at).toLocaleDateString()}</p>
+                </div>
+                <button
+                  onClick={e => deleteTemplate(e, t.id)}
+                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 p-1 rounded transition-all"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Template Saver (create new OR overwrite existing) ────────────────────────
+
+function TemplateSaver({ widgets }) {
+  const [open,      setOpen]      = useState(false);
+  const [mode,      setMode]      = useState('new');   // 'new' | 'overwrite'
+  const [name,      setName]      = useState('');
+  const [selId,     setSelId]     = useState('');
+  const [templates, setTemplates] = useState([]);
+  const [saving,    setSaving]    = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  async function openPopover() {
+    setOpen(o => !o);
+    if (!templates.length) {
+      try { const r = await api.get('/sandbox'); setTemplates(r.data); } catch {}
+    }
+  }
+
+  async function handleSave() {
+    if (mode === 'new' && !name.trim()) return;
+    if (mode === 'overwrite' && !selId) return;
+    setSaving(true);
+    try {
+      if (mode === 'overwrite') {
+        const tpl = templates.find(t => String(t.id) === String(selId));
+        await api.post('/sandbox', { name: tpl?.name || selId, widgets });
+      } else {
+        await api.post('/sandbox', { name: name.trim(), widgets });
+        setTemplates(prev => [...prev.filter(t => t.name !== name.trim()), { id: Date.now(), name: name.trim(), created_at: new Date() }]);
+      }
+      setName('');
+      setOpen(false);
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Failed to save template');
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={openPopover}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors"
+      >
+        <Save size={13} /> Save Template
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-3">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Save Template</p>
+
+          {/* Mode toggle */}
+          <div className="flex gap-1 p-0.5 bg-slate-800 rounded-lg mb-3">
+            {[['new','Create New'],['overwrite','Overwrite']].map(([v,l]) => (
+              <button key={v} type="button" onClick={() => setMode(v)}
+                className={`flex-1 py-1 rounded-md text-[11px] font-semibold transition-all ${mode === v ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >{l}</button>
+            ))}
+          </div>
+
+          {mode === 'new' ? (
+            <input
+              autoFocus value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setOpen(false); }}
+              placeholder="Template name…"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-sky-500 transition-all mb-2"
+            />
+          ) : (
+            <select value={selId} onChange={e => setSelId(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-sky-500 transition-all mb-2"
+            >
+              <option value="">— Select template —</option>
+              {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
+
+          <button
+            onClick={handleSave}
+            disabled={saving || (mode === 'new' ? !name.trim() : !selId)}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-white bg-sky-500 hover:bg-sky-400 disabled:opacity-50 transition-colors"
+          >
+            <Save size={13} /> {saving ? 'Saving…' : mode === 'overwrite' ? 'Overwrite' : 'Save'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -495,17 +642,13 @@ export default function SandboxPage() {
   const droppingTypeRef = useRef(null);
   const canvasRef       = useRef(null);
 
-  // ── Animated preview values for SandboxConfigPanel's LiveSyncBadge ───────────
-  // Updated every 500 ms. Uses sine waves / toggles to simulate realistic feeds.
-  // These values are NOT injected into canvas widgets — CanvasWidget uses the
-  // static PREVIEW_VALUES map. This is only for the config panel's live badge.
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 500);
     return () => clearInterval(id);
   }, []);
 
   const mockData = useMemo(() => {
-    const t = tick * 0.5; // seconds elapsed
+    const t = tick * 0.5;
     return {
       gauge:       parseFloat((50 + 30 * Math.sin(t / 8)).toFixed(2)),
       slider:      parseFloat((40 + 20 * Math.sin(t / 5)).toFixed(2)),
@@ -530,7 +673,6 @@ export default function SandboxPage() {
     });
   }
 
-  // datastreamId → datastream object (for min/max/unit in preview)
   const datastreamMap = useMemo(
     () => Object.fromEntries(datastreams.map(ds => [ds.id, ds])),
     [datastreams]
@@ -543,7 +685,6 @@ export default function SandboxPage() {
     }).catch(() => {});
   }, []);
 
-  // Fetch datastreams for selected device (used by settings modal DatastreamSelect + adaptForRenderer)
   useEffect(() => {
     if (!deviceId) { setDatastreams([]); return; }
     api.get(`/datastream?device_id=${deviceId}`)
@@ -582,12 +723,9 @@ export default function SandboxPage() {
     if (!type) return;
     const sz = WIDGET_SIZES[type] || { w: 3, h: 3 };
     updateWidgets(prev => [...prev, {
-      id:       `w_${Date.now()}`,
-      type,
-      x:        item.x,
-      y:        item.y,
-      w:        item.w || sz.w,
-      h:        item.h || sz.h,
+      id: `w_${Date.now()}`, type,
+      x: item.x, y: item.y,
+      w: item.w || sz.w, h: item.h || sz.h,
       settings: { ...DEFAULT_SETTINGS[type] },
     }]);
   }
@@ -596,8 +734,8 @@ export default function SandboxPage() {
     updateWidgets(prev => [...prev, {
       ...widget,
       id: `w_${Date.now()}`,
-      x:  Math.min(widget.x + widget.w, 12 - widget.w),
-      y:  widget.y + widget.h,
+      x: Math.min(widget.x + widget.w, 12 - widget.w),
+      y: widget.y + widget.h,
     }]);
   }, []);
 
@@ -610,31 +748,50 @@ export default function SandboxPage() {
     setSettingsWidget(null);
   }
 
-  const sz          = droppingType ? (WIDGET_SIZES[droppingType] || { w: 3, h: 3 }) : { w: 3, h: 3 };
+  // Cancel the Layout's p-6 padding so the sandbox fills the viewport edge-to-edge
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (!main) return;
+    const prev = { padding: main.style.padding, overflow: main.style.overflow };
+    main.style.padding  = '0';
+    main.style.overflow = 'hidden';
+    return () => {
+      main.style.padding  = prev.padding;
+      main.style.overflow = prev.overflow;
+    };
+  }, []);
+
+  const sz           = droppingType ? (WIDGET_SIZES[droppingType] || { w: 3, h: 3 }) : { w: 3, h: 3 };
   const droppingItem = { i: '__dropping__', w: sz.w, h: sz.h };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#020617', color: '#e2e8f0' }}>
+    <div className="flex flex-col bg-slate-950 text-slate-200" style={{ height: '100vh', overflow: 'hidden' }}>
 
-      {/* ── Top bar ── */}
-      <div style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: '#f1f5f9' }}>Dashboard Sandbox</div>
-          <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
-            {editMode
-              ? 'Edit Mode — drag widgets, hover to copy / configure / delete'
-              : 'Preview Mode — widgets show realistic mock data  ·  Toggle Edit to modify'}
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      <div className="bg-slate-900 border-b border-slate-800 px-5 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
+            <Layers size={14} className="text-violet-400" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold text-slate-100">Dashboard Sandbox</h1>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {editMode
+                ? 'Edit Mode — drag widgets, hover to copy / configure / delete'
+                : 'Preview Mode — widgets show realistic mock data'}
+            </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Device selector — used when binding datastreams in settings */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '5px 10px' }}>
-            <span style={{ fontSize: 11, color: '#475569' }}>Device:</span>
+        <div className="flex items-center gap-3">
+          {/* Device selector */}
+          <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
+            <Cpu size={12} className="text-slate-500" />
+            <span className="text-[11px] text-slate-500">Device:</span>
             <select
               value={deviceId}
               onChange={e => setDeviceId(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: '#e2e8f0', fontSize: 13, outline: 'none', cursor: 'pointer' }}
+              className="bg-transparent border-none text-slate-300 text-[13px] outline-none cursor-pointer"
             >
               {!devices.length && <option>No devices</option>}
               {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -642,15 +799,21 @@ export default function SandboxPage() {
           </div>
 
           {widgets.length > 0 && (
-            <span style={{ fontSize: 12, color: '#475569', fontFamily: 'monospace' }}>
+            <span className="text-xs text-slate-600 font-mono">
               {widgets.length} widget{widgets.length !== 1 ? 's' : ''}
             </span>
           )}
 
+          {/* Template: Load dropdown */}
+          <TemplateLoader onLoad={updateWidgets} />
+
+          {/* Template: Save to server */}
+          <TemplateSaver widgets={widgets} />
+
           {widgets.length > 0 && (
             <button
               onClick={() => { if (window.confirm('Clear all widgets?')) updateWidgets([]); }}
-              style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 12, cursor: 'pointer', padding: '4px 8px' }}
+              className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-colors"
             >
               Clear
             </button>
@@ -659,51 +822,48 @@ export default function SandboxPage() {
           {widgets.length > 0 && (
             <button
               onClick={() => setSaveDialog(true)}
-              style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 6 }}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold text-white bg-sky-500 hover:bg-sky-400 border border-sky-400/30 transition-all shadow-lg shadow-sky-500/20"
             >
-              💾 Save to Dashboards
+              <Save size={14} />
+              Save to Dashboards
             </button>
           )}
 
-          {/* Edit Mode toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: editMode ? '#38bdf8' : '#64748b' }}>
-              {editMode ? '✏ Edit' : '👁 Preview'}
-            </span>
+          {/* Edit / Preview toggle */}
+          <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-1">
             <button
-              onClick={() => setEditMode(m => !m)}
-              style={{
-                position: 'relative', width: 44, height: 24, borderRadius: 99,
-                background: editMode ? '#0284c7' : '#1e293b', border: 'none', cursor: 'pointer',
-                transition: 'background 0.2s', padding: 0,
-              }}
+              onClick={() => setEditMode(false)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${!editMode ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-400'}`}
             >
-              <span style={{
-                position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%',
-                background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.4)',
-                transition: 'left 0.2s', left: editMode ? 23 : 3,
-              }} />
+              <Eye size={12} /> Preview
+            </button>
+            <button
+              onClick={() => setEditMode(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editMode ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-slate-500 hover:text-slate-400'}`}
+            >
+              <Pencil size={12} /> Edit
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Workspace ── */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {/* ── Workspace ────────────────────────────────────────────────────────── */}
+      <div className="flex flex-1 overflow-hidden">
 
-        {/* Widget Drawer — visible only in edit mode */}
-        <div style={{
-          width: editMode ? 184 : 0, flexShrink: 0, overflow: 'hidden',
-          background: '#0f172a', borderRight: '1px solid #1e293b',
-          transition: 'width 0.25s cubic-bezier(.4,0,.2,1)',
-        }}>
+        {/* Widget Drawer */}
+        <div
+          className="shrink-0 overflow-hidden bg-slate-900 border-r border-slate-800 transition-all duration-250"
+          style={{ width: editMode ? 188 : 0 }}
+        >
           {editMode && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ padding: '10px 12px 6px', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '1px', textTransform: 'uppercase' }}>Widget Box</div>
-                <div style={{ fontSize: 10, color: '#1e293b', marginTop: 2 }}>Drag onto canvas →</div>
+            <div className="flex flex-col h-full">
+              <div className="px-3 py-2.5 border-b border-slate-800 shrink-0">
+                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Widget Box</p>
+                <p className="text-[10px] text-slate-700 mt-0.5 flex items-center gap-1">
+                  Drag onto canvas <ChevronRight size={10} />
+                </p>
               </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
+              <div className="flex-1 overflow-y-auto p-2.5 scrollbar-thin">
                 {WIDGET_META.map(meta => (
                   <DrawerItem key={meta.type} meta={meta} onDragStart={handleDragStart} />
                 ))}
@@ -713,25 +873,24 @@ export default function SandboxPage() {
         </div>
 
         {/* Canvas */}
-        <div ref={canvasRef} style={{ flex: 1, overflowY: 'auto', padding: 16, position: 'relative', minWidth: 0 }}>
-
+        <div ref={canvasRef} className="flex-1 overflow-y-auto p-4 relative min-w-0">
           {!widgets.length && (
-            <div style={{
-              height: 280, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-              border: '2px dashed #1e293b', borderRadius: 16, margin: 8,
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>{editMode ? '⬅' : '🎨'}</div>
-              <div style={{ fontWeight: 600, color: '#334155', fontSize: 15 }}>
+            <div className="flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-800 rounded-2xl m-2 py-20">
+              <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-4">
+                {editMode
+                  ? <ChevronRight size={24} className="text-slate-600" />
+                  : <Layers size={24} className="text-slate-600" />
+                }
+              </div>
+              <p className="font-semibold text-slate-500 text-sm">
                 {editMode ? 'Drag widgets from the panel' : 'Canvas is empty'}
-              </div>
-              <div style={{ color: '#1e293b', fontSize: 12, marginTop: 6 }}>
+              </p>
+              <p className="text-xs text-slate-700 mt-1.5">
                 {editMode ? 'Drop anywhere on this grid' : 'Toggle Edit Mode to start building'}
-              </div>
+              </p>
             </div>
           )}
 
-          {/* Grid — always mounted to avoid RGL DOM errors on unmount */}
           <div style={{ display: widgets.length === 0 ? 'none' : 'block' }}>
             <GridLayout
               layout={layout}
@@ -762,7 +921,6 @@ export default function SandboxPage() {
             </GridLayout>
           </div>
 
-          {/* Drop zone for empty canvas in edit mode */}
           {widgets.length === 0 && editMode && (
             <GridLayout
               layout={[]} cols={12} rowHeight={80}
@@ -778,12 +936,11 @@ export default function SandboxPage() {
           )}
         </div>
 
-        {/* Config Panel — right-side slide-in, visible when a widget is selected */}
-        <div style={{
-          width: settingsWidget ? 320 : 0, flexShrink: 0, overflow: 'hidden',
-          transition: 'width 0.25s cubic-bezier(.4,0,.2,1)',
-          display: 'flex',
-        }}>
+        {/* Config Panel */}
+        <div
+          className="shrink-0 overflow-hidden transition-all duration-250 flex"
+          style={{ width: settingsWidget ? 320 : 0 }}
+        >
           {settingsWidget && (
             <SandboxConfigPanel
               widget={settingsWidget}
@@ -798,9 +955,9 @@ export default function SandboxPage() {
 
       {/* Edit mode info bar */}
       {editMode && (
-        <div style={{ background: 'rgba(2,132,199,0.1)', borderTop: '1px solid rgba(2,132,199,0.2)', padding: '6px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#38bdf8' }}>EDIT MODE</span>
-          <span style={{ fontSize: 11, color: '#334155' }}>Drag · Resize corners · Hover widget for Copy / Settings / Delete</span>
+        <div className="bg-sky-500/10 border-t border-sky-500/20 px-5 py-2 flex items-center gap-3 shrink-0">
+          <span className="text-[11px] font-bold text-sky-400">EDIT MODE</span>
+          <span className="text-[11px] text-slate-600">Drag · Resize corners · Hover widget for Copy / Settings / Delete</span>
         </div>
       )}
 
@@ -813,7 +970,6 @@ export default function SandboxPage() {
           onClose={() => setSaveDialog(false)}
         />
       )}
-
     </div>
   );
 }

@@ -1,15 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Base resets for dark IoT theme ── */
+/* ── Widget CSS variables — light mode ── */
+:root {
+  --w-bg:           #ffffff;
+  --w-bg2:          #f1f5f9;
+  --w-track:        #e2e8f0;
+  --w-text:         #0f172a;
+  --w-text-muted:   #64748b;
+  --w-text-dim:     #94a3b8;
+  --w-border:       #e2e8f0;
+  --w-grid:         #f1f5f9;
+  --w-tooltip-bg:   #ffffff;
+  --w-tooltip-bdr:  1px solid #e2e8f0;
+  --w-off:          #e2e8f0;
+  --w-off-border:   #cbd5e1;
+  --w-off-thumb:    #94a3b8;
+  --w-shell:        #ffffff;
+  --w-shell-border: #e2e8f0;
+  --w-handle:       #f8fafc;
+  --w-handle-bdr:   #f1f5f9;
+}
+
+/* ── Widget CSS variables — dark mode ── */
+html.dark {
+  --w-bg:           #1e293b;
+  --w-bg2:          #0f172a;
+  --w-track:        #1e293b;
+  --w-text:         #e2e8f0;
+  --w-text-muted:   #64748b;
+  --w-text-dim:     #94a3b8;
+  --w-border:       #334155;
+  --w-grid:         #0f172a;
+  --w-tooltip-bg:   #0f172a;
+  --w-tooltip-bdr:  1px solid #334155;
+  --w-off:          #1e293b;
+  --w-off-border:   #334155;
+  --w-off-thumb:    #475569;
+  --w-shell:        #1e293b;
+  --w-shell-border: #334155;
+  --w-handle:       #0f172a;
+  --w-handle-bdr:   #1e293b;
+}
+
 @layer base {
   html {
-    @apply bg-slate-950 text-slate-200;
+    background: #f8fafc;
+    color: #0f172a;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  html.dark {
+    background: #020617;
+    color: #e2e8f0;
   }
 
   body {
-    @apply bg-slate-950 text-slate-200 antialiased;
+    @apply antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
   * {
@@ -25,7 +76,6 @@
   }
 }
 
-/* ── Scrollbar ── */
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
