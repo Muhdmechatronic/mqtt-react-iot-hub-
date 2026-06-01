@@ -77,13 +77,13 @@ async function ensureAdminUser() {
         [hash]
       );
       console.log('[init] Admin user created — login: admin@iotplatform.local / admin123');
-    } else if (rows[0].password === PLACEHOLDER_HASH) {
+    } else if (rows[0].password === null || rows[0].password === PLACEHOLDER_HASH) {
       const hash = await bcrypt.hash('admin123', 10);
       await db.query(
         "UPDATE users SET password = ? WHERE email = 'admin@iotplatform.local'",
         [hash]
       );
-      console.log('[init] Admin password hash corrected — login: admin@iotplatform.local / admin123');
+      console.log('[init] Admin password set — login: admin@iotplatform.local / admin123');
     }
   } catch (e) {
     console.warn('[init] ensureAdminUser failed:', e.message);
@@ -91,137 +91,3 @@ async function ensureAdminUser() {
 }
 ensureAdminUser();
 
-// ── Idempotent column migration for access_type ───────────────────────────────
-// Docker only runs schema.sql on a fresh volume. Any database initialised before
-// this column was added will crash on datastream create/update without this fix.
-async function ensureAccessTypeColumn() {
-  try {
-    const [cols] = await db.query(
-      `SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME   = 'datastreams'
-         AND COLUMN_NAME  = 'access_type'`
-    );
-    if (cols[0].cnt === 0) {
-      await db.query(
-        `ALTER TABLE datastreams
-         ADD COLUMN access_type ENUM('READ_ONLY','WRITE_ONLY','READ_WRITE')
-           NOT NULL DEFAULT 'READ_WRITE'
-         AFTER data_type`
-      );
-      console.log('[init] datastreams.access_type column added');
-    }
-  } catch (e) {
-    console.warn('[init] ensureAccessTypeColumn failed:', e.message);
-  }
-}
-ensureAccessTypeColumn();
-
-// ── Idempotent column migration for last_ping_at ──────────────────────────────
-// Needed by heartbeatWorker. Old databases won't have this column.
-async function ensureLastPingAtColumn() {
-  try {
-    const [cols] = await db.query(
-      `SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME   = 'devices'
-         AND COLUMN_NAME  = 'last_ping_at'`
-    );
-    if (cols[0].cnt === 0) {
-      await db.query(
-        `ALTER TABLE devices ADD COLUMN last_ping_at DATETIME NULL AFTER last_seen`
-      );
-      console.log('[init] devices.last_ping_at column added');
-    }
-  } catch (e) {
-    console.warn('[init] ensureLastPingAtColumn failed:', e.message);
-  }
-}
-ensureLastPingAtColumn();
-
-// ── Idempotent enum migration: add 'command' to sensor_data.protocol ──────────
-// Dashboard widgets (Switch, Slider, Push Button) persist their values to
-// sensor_data with protocol='command' so the ESP32 HTTP poll can read them.
-// Without this value in the enum, MySQL silently drops the row and onPin()
-// callbacks never fire.
-async function ensureCommandProtocol() {
-  try {
-    const [cols] = await db.query(
-      `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME   = 'sensor_data'
-         AND COLUMN_NAME  = 'protocol'`
-    );
-    if (cols.length && !cols[0].COLUMN_TYPE.includes("'command'")) {
-      await db.query(
-        `ALTER TABLE sensor_data
-         MODIFY COLUMN protocol
-           ENUM('mqtt','http','websocket','command') NOT NULL DEFAULT 'mqtt'`
-      );
-      console.log("[init] sensor_data.protocol enum extended with 'command'");
-    }
-  } catch (e) {
-    console.warn('[init] ensureCommandProtocol failed:', e.message);
-  }
-}
-ensureCommandProtocol();
-
-// ── Create sandbox_templates table if it doesn't exist ────────────────────────
-async function ensureSandboxTemplatesTable() {
-  try {
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS sandbox_templates (
-        id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        user_id      INT UNSIGNED NOT NULL,
-        name         VARCHAR(120) NOT NULL,
-        widgets_json MEDIUMTEXT   NOT NULL,
-        created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_sb_user_name (user_id, name)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-    console.log('[init] sandbox_templates table ready');
-  } catch (e) {
-    console.warn('[init] ensureSandboxTemplatesTable failed:', e.message);
-  }
-}
-ensureSandboxTemplatesTable();
-
-// ── Google OAuth columns on users table ───────────────────────────────────────
-async function ensureGoogleOAuthColumns() {
-  try {
-    const [cols] = await db.query(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
-         AND COLUMN_NAME IN ('google_id', 'avatar_url')`
-    );
-    const existing = cols.map(c => c.COLUMN_NAME);
-
-    if (!existing.includes('google_id')) {
-      await db.query(
-        'ALTER TABLE users ADD COLUMN google_id VARCHAR(128) NULL UNIQUE AFTER email'
-      );
-      console.log('[init] users.google_id column added');
-    }
-    if (!existing.includes('avatar_url')) {
-      await db.query(
-        'ALTER TABLE users ADD COLUMN avatar_url TEXT NULL AFTER google_id'
-      );
-      console.log('[init] users.avatar_url column added');
-    }
-
-    // Allow password to be NULL for Google-only accounts
-    const [pwCols] = await db.query(
-      `SELECT IS_NULLABLE FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'password'`
-    );
-    if (pwCols.length && pwCols[0].IS_NULLABLE === 'NO') {
-      await db.query(
-        'ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL'
-      );
-      console.log('[init] users.password made nullable for OAuth accounts');
-    }
-  } catch (e) {
-    console.warn('[init] ensureGoogleOAuthColumns failed:', e.message);
-  }
-}
-ensureGoogleOAuthColumns();

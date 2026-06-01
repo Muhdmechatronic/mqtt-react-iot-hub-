@@ -98,9 +98,9 @@ class ChartWidget extends ConsumerWidget {
               getTitlesWidget: (v, _) => Text(
                   v.toStringAsFixed(0),
                   style: const TextStyle(color: Colors.white38, fontSize: 9)))),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:   const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
         minY: minY, maxY: maxY,
@@ -110,7 +110,7 @@ class ChartWidget extends ConsumerWidget {
             isCurved:    true,
             color:       const Color(0xFF0EA5E9),
             barWidth:    2,
-            dotData:     FlDotData(show: false),
+            dotData:     const FlDotData(show: false),
             belowBarData: BarAreaData(
               show:  true,
               color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),

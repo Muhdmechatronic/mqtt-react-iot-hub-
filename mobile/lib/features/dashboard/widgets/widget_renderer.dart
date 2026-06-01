@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/lucide_icons.dart';
 import '../../../models/dashboard.dart';
 import '../../sync/sync_notifier.dart';
+import 'button_widget.dart';
 import 'gauge_widget.dart';
 import 'led_widget.dart';
 import 'slider_widget.dart';
@@ -26,7 +27,7 @@ class WidgetRenderer extends ConsumerWidget {
       WidgetKind.led          => LedWidget(widget: w, value: value),
       WidgetKind.slider       => SliderWidget(widget: w, value: value),
       WidgetKind.switchWidget => SwitchWidget(widget: w, value: value),
-      WidgetKind.button       => SwitchWidget(widget: w, value: value),
+      WidgetKind.button       => ButtonWidget(widget: w, value: value),
       WidgetKind.chart        => ChartWidget(widget: w),
       WidgetKind.linechart    => ChartWidget(widget: w),
       WidgetKind.progressbar  => ProgressBarWidget(widget: w, value: value),

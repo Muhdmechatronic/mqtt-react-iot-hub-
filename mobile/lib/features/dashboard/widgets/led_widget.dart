@@ -10,43 +10,85 @@ class LedWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final on  = (value ?? 0) > 0;
-    final pwm = (value ?? 0).clamp(0.0, 255.0);
-    final pct = ((pwm / 255.0) * 100).round();
-    final color = on ? const Color(0xFF22C55E) : const Color(0xFF334155);
-    final glow  = on
-        ? [
-            BoxShadow(
-                color:        const Color(0xFF22C55E).withValues(alpha: 0.4),
-                blurRadius:   24,
-                spreadRadius: 4),
-          ]
-        : <BoxShadow>[];
+    final w        = widget;
+    final color    = w.widgetColor;
+    final ledMode  = w.ledMode;
+    final threshold = w.ledThreshold;
+    final pwmMin   = w.ledPwmMin;
+    final pwmMax   = w.ledPwmMax;
+
+    // Calculate brightness
+    double brightness;
+    if (ledMode == 'pwm') {
+      final v = value ?? 0;
+      brightness = (pwmMax > pwmMin)
+          ? ((v - pwmMin) / (pwmMax - pwmMin)).clamp(0.0, 1.0)
+          : 0.0;
+    } else {
+      brightness = (value ?? 0) >= threshold ? 1.0 : 0.0;
+    }
+
+    final on = brightness > 0.01;
+
+    // Effective glow color with brightness-modulated alpha
+    final glowColor = color.withValues(alpha: brightness * 0.55);
+    final circleColor = on
+        ? Color.lerp(color.withValues(alpha: 0.25), color, brightness)!
+        : const Color(0xFF334155);
+
+    String label;
+    if (ledMode == 'pwm') {
+      label = on ? '${(brightness * 100).round()}%' : 'OFF';
+    } else {
+      label = on ? 'ON' : 'OFF';
+    }
 
     return _WidgetCard(
-      title: widget.title,
+      title: w.title,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            width: 52, height: 52,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              shape:     BoxShape.circle,
-              color:     color,
-              boxShadow: glow,
+              shape: BoxShape.circle,
+              color: circleColor,
+              gradient: on
+                  ? RadialGradient(
+                      colors: [
+                        color.withValues(alpha: brightness * 0.9),
+                        color.withValues(alpha: brightness * 0.4),
+                      ],
+                      radius: 0.85,
+                    )
+                  : null,
+              boxShadow: on
+                  ? [
+                      BoxShadow(
+                        color: glowColor,
+                        blurRadius: 20 + (brightness * 16),
+                        spreadRadius: 2 + (brightness * 4),
+                      ),
+                    ]
+                  : [],
             ),
             child: Center(
               child: LucideIcons.lightbulb(
-                  color: on ? Colors.white : Colors.white24, size: 22),
+                color: on ? Colors.white.withValues(alpha: 0.85 + brightness * 0.15) : Colors.white24,
+                size: 22,
+              ),
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            on ? (pwm < 255 ? 'ON  $pct%' : 'ON') : 'OFF',
+            label,
             style: TextStyle(
-              color:      on ? Colors.white : Colors.white38,
-              fontSize:   13,
+              color: on
+                  ? Color.lerp(color.withValues(alpha: 0.6), color, brightness)
+                  : Colors.white38,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),

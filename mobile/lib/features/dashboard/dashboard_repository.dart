@@ -18,6 +18,17 @@ class DashboardRepository {
         .map((j) => DashboardWidget.fromJson(j as Map<String, dynamic>))
         .toList();
   }
+
+  Future<void> updateWidget(
+    int widgetId, {
+    String? title,
+    Map<String, dynamic>? settings,
+  }) async {
+    await _dio.put('/dashboard/widgets/$widgetId', data: {
+      if (title != null) 'title': title,
+      if (settings != null) 'settings_json': settings,
+    });
+  }
 }
 
 final dashboardRepositoryProvider = Provider<DashboardRepository>(

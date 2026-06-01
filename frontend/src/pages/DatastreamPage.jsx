@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 
@@ -348,22 +349,27 @@ function DatastreamModal({ deviceId, existing, takenPins, onClose, onSaved, s })
 export default function DatastreamPage() {
   const { dark } = useTheme();
   const s = makeStyles(dark);
+  const navigate = useNavigate();
 
-  const [devices,     setDevices]     = useState([]);
-  const [deviceId,    setDeviceId]    = useState('');
-  const [streams,     setStreams]     = useState([]);
-  const [showModal,   setShowModal]   = useState(false);
-  const [editTarget,  setEditTarget]  = useState(null);
-  const [loading,     setLoading]     = useState(false);
-  const [importing,   setImporting]   = useState(false);
-  const [importMsg,   setImportMsg]   = useState('');
+  const [devices,       setDevices]       = useState([]);
+  const [devicesLoaded, setDevicesLoaded] = useState(false);
+  const [deviceId,      setDeviceId]      = useState('');
+  const [streams,       setStreams]        = useState([]);
+  const [showModal,     setShowModal]     = useState(false);
+  const [editTarget,    setEditTarget]    = useState(null);
+  const [loading,       setLoading]       = useState(false);
+  const [importing,     setImporting]     = useState(false);
+  const [importMsg,     setImportMsg]     = useState('');
   const importRef = useRef(null);
 
   useEffect(() => {
-    api.get('/device/list').then(r => {
-      setDevices(r.data);
-      if (r.data.length > 0) setDeviceId(String(r.data[0].id));
-    }).catch(() => {});
+    api.get('/device/list')
+      .then(r => {
+        setDevices(r.data);
+        if (r.data.length > 0) setDeviceId(String(r.data[0].id));
+      })
+      .catch(() => {})
+      .finally(() => setDevicesLoaded(true));
   }, []);
 
   const loadStreams = useCallback(() => {
@@ -465,6 +471,7 @@ export default function DatastreamPage() {
           <div style={s.title}>Datastreams</div>
           <div style={s.subtitle}>Virtual pin management — V0 to V255</div>
         </div>
+        {devices.length > 0 && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Export */}
           <button
@@ -478,18 +485,19 @@ export default function DatastreamPage() {
           {/* Import */}
           <button
             onClick={() => importRef.current?.click()}
-            disabled={!deviceId || importing}
+            disabled={importing}
             title="Import datastreams from a JSON file (skips pins already in use)"
-            style={{ ...s.btnPrimary, background: '#7c3aed', opacity: deviceId ? 1 : 0.4, display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ ...s.btnPrimary, background: '#7c3aed', display: 'flex', alignItems: 'center', gap: 6 }}
           >
             {importing ? '⏳ Importing…' : '↑ Import JSON'}
           </button>
           <input ref={importRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportFile} />
           {/* New */}
-          <button style={s.btnPrimary} onClick={openCreate} disabled={!deviceId}>
+          <button style={s.btnPrimary} onClick={openCreate}>
             + New Datastream
           </button>
         </div>
+        )}
       </div>
 
       {/* Import result message */}
@@ -506,7 +514,32 @@ export default function DatastreamPage() {
         </div>
       )}
 
-      {/* Device selector */}
+      {/* No-device empty state — shown after fetch completes with zero devices */}
+      {devicesLoaded && devices.length === 0 && (
+        <div style={{
+          textAlign: 'center', padding: '56px 24px', borderRadius: 14,
+          background: dark ? '#0f172a' : '#f8fafc',
+          border: `1px solid ${dark ? '#1e3a5f' : '#e2e8f0'}`,
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📡</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: dark ? '#f1f5f9' : '#0f172a', marginBottom: 8 }}>
+            No devices found
+          </div>
+          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24, maxWidth: 360, margin: '0 auto 24px' }}>
+            You need to register a device before you can create datastreams.
+            Head to the Devices page and add your ESP32 or other hardware first.
+          </div>
+          <button
+            onClick={() => navigate('/devices')}
+            style={{ background: '#0ea5e9', border: 'none', borderRadius: 8, color: '#fff', padding: '10px 28px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}
+          >
+            → Go to Devices
+          </button>
+        </div>
+      )}
+
+      {/* Device selector — only shown when at least one device exists */}
+      {devices.length > 0 && (
       <div style={s.toolbar}>
         <span style={{ fontSize: 13, color: '#64748b' }}>Device:</span>
         <select
@@ -514,7 +547,6 @@ export default function DatastreamPage() {
           value={deviceId}
           onChange={e => setDeviceId(e.target.value)}
         >
-          {devices.length === 0 && <option>No devices</option>}
           {devices.map(d => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
@@ -528,9 +560,11 @@ export default function DatastreamPage() {
           {streams.length} / 256 pins used
         </span>
       </div>
+      )}
 
-      {/* Table */}
-      <div style={{ background: '#1e293b', borderRadius: 12, overflow: 'hidden', border: '1px solid #1e3a5f' }}>
+      {/* Table — only shown when at least one device exists */}
+      {devices.length > 0 && (
+      <div style={{ background: dark ? '#1e293b' : '#ffffff', borderRadius: 12, overflow: 'hidden', border: `1px solid ${dark ? '#1e3a5f' : '#e2e8f0'}` }}>
         <table style={s.table}>
           <thead>
             <tr>
@@ -588,6 +622,7 @@ export default function DatastreamPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Modal */}
       {showModal && deviceId && (

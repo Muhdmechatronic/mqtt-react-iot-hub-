@@ -37,7 +37,9 @@ class _SliderWidgetState extends ConsumerState<SliderWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final w = widget.widget;
+    final w     = widget.widget;
+    final color = w.widgetColor;
+
     return _WidgetCard(
       title: w.title,
       child: Column(
@@ -45,16 +47,19 @@ class _SliderWidgetState extends ConsumerState<SliderWidget> {
         children: [
           Text(
             '${_effective.toStringAsFixed(1)}${w.unit.isNotEmpty ? ' ${w.unit}' : ''}',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: color,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor:   const Color(0xFF0EA5E9),
+              activeTrackColor:   color,
               inactiveTrackColor: Colors.white12,
-              thumbColor:         const Color(0xFF0EA5E9),
-              overlayColor:       const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+              thumbColor:         color,
+              overlayColor:       color.withValues(alpha: 0.15),
               trackHeight:        4,
             ),
             child: Slider(
@@ -64,8 +69,8 @@ class _SliderWidgetState extends ConsumerState<SliderWidget> {
               divisions: w.sliderStep > 0
                   ? ((w.sliderMax - w.sliderMin) / w.sliderStep).round()
                   : null,
-              onChanged:    _onChanged,
-              onChangeEnd:  _onChangeEnd,
+              onChanged:   _onChanged,
+              onChangeEnd: _onChangeEnd,
             ),
           ),
           Row(

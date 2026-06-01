@@ -9,13 +9,13 @@ class ProgressBarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w      = widget;
-    final min    = w.gaugeMin;
-    final max    = w.gaugeMax;
-    final pct    = value != null
+    final w     = widget;
+    final min   = w.gaugeMin;
+    final max   = w.gaugeMax;
+    final color = w.widgetColor;
+    final pct   = value != null
         ? ((value! - min) / (max - min)).clamp(0.0, 1.0)
         : 0.0;
-    const color  = Color(0xFF0EA5E9);
 
     return _WidgetCard(
       title: w.title,
@@ -30,7 +30,7 @@ class ProgressBarWidget extends StatelessWidget {
             children: [
               Text(
                 value != null ? value!.toStringAsFixed(1) : '--',
-                style: const TextStyle(
+                style: TextStyle(
                   color: color,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -49,10 +49,10 @@ class ProgressBarWidget extends StatelessWidget {
               duration: const Duration(milliseconds: 500),
               curve: Curves.easeInOut,
               builder: (_, v, __) => LinearProgressIndicator(
-                value:            v,
-                minHeight:        10,
-                backgroundColor:  Colors.white10,
-                valueColor: const AlwaysStoppedAnimation<Color>(color),
+                value:           v,
+                minHeight:       10,
+                backgroundColor: Colors.white10,
+                valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
           ),
@@ -63,7 +63,7 @@ class ProgressBarWidget extends StatelessWidget {
               Text('${min.toStringAsFixed(0)}${w.unit}',
                   style: const TextStyle(color: Colors.white38, fontSize: 9)),
               Text('${(pct * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: color, fontSize: 9, fontWeight: FontWeight.w600)),
               Text('${max.toStringAsFixed(0)}${w.unit}',
                   style: const TextStyle(color: Colors.white38, fontSize: 9)),

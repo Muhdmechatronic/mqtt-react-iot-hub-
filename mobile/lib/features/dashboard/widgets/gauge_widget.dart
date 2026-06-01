@@ -14,16 +14,18 @@ class GaugeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final v     = value ?? widget.gaugeMin;
-    final frac  = ((v - widget.gaugeMin) / (widget.gaugeMax - widget.gaugeMin))
+    final v    = value ?? widget.gaugeMin;
+    final frac = ((v - widget.gaugeMin) / (widget.gaugeMax - widget.gaugeMin))
         .clamp(0.0, 1.0);
-    final color = _arcColor(frac);
+
+    // Use configurable color if set in settings; otherwise use green→orange→red gradient
+    final hasCustomColor = widget.settings['color']?.toString().isNotEmpty ?? false;
+    final color = hasCustomColor ? widget.widgetColor : _arcColor(frac);
 
     return _WidgetCard(
       title: widget.title,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Fit the gauge arc within whatever space the card gives
           final gaugeH = (constraints.maxHeight * 0.52).clamp(55.0, 85.0);
           final gaugeW = gaugeH * 1.45;
 
@@ -38,8 +40,8 @@ class GaugeWidget extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '${v.toStringAsFixed(1)}${widget.unit.isNotEmpty ? ' ${widget.unit}' : ''}',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: color,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -77,9 +79,9 @@ class _GaugePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height * 0.85;
-    final r  = size.width * 0.42;
+    final cx   = size.width / 2;
+    final cy   = size.height * 0.85;
+    final r    = size.width * 0.42;
     final rect = Rect.fromCircle(center: Offset(cx, cy), radius: r);
 
     // Background track

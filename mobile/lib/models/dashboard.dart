@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show Color;
 
 class Dashboard {
   const Dashboard({required this.id, required this.name});
@@ -84,6 +85,24 @@ class DashboardWidget {
   double get offValue => _numSetting('offValue', 0);
   String get onLabel  => settings['onLabel']?.toString()  ?? 'ON';
   String get offLabel => settings['offLabel']?.toString() ?? 'OFF';
+
+  // Color from settings hex (e.g. "#22c55e") with fallback to cyan
+  Color get widgetColor {
+    final hex = settings['color']?.toString();
+    if (hex == null || hex.isEmpty) return const Color(0xFF0EA5E9);
+    final clean = hex.startsWith('#') ? hex.substring(1) : hex;
+    if (clean.length != 6) return const Color(0xFF0EA5E9);
+    return Color(int.tryParse('FF$clean', radix: 16) ?? 0xFF0EA5E9);
+  }
+
+  // LED mode settings
+  String get ledMode      => settings['ledMode']?.toString() ?? settings['led_mode']?.toString() ?? 'binary';
+  double get ledThreshold => _numSetting('threshold', 0.5);
+  double get ledPwmMin    => _numSetting('pwmMin', 0);
+  double get ledPwmMax    => _numSetting('pwmMax', 100);
+
+  // Button label
+  String get buttonLabel => settings['label']?.toString() ?? title;
 
   factory DashboardWidget.fromJson(Map<String, dynamic> j) {
     final raw = j['settings_json'];

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/lucide_icons.dart';
 import '../../../models/dashboard.dart';
 import '../../sync/sync_notifier.dart';
 
@@ -12,13 +11,15 @@ class SwitchWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final w    = widget;
-    final isOn = (value ?? w.offValue) == w.onValue;
+    final w     = widget;
+    final isOn  = (value ?? w.offValue) == w.onValue;
+    final color = w.widgetColor;
 
     void toggle() {
       if (w.deviceId == null || w.dataKey == null) return;
       final next = isOn ? w.offValue : w.onValue;
-      ref.read(deviceSyncProvider.notifier)
+      ref
+          .read(deviceSyncProvider.notifier)
           .writePin(w.deviceId!, w.dataKey!, next, widgetId: w.id);
     }
 
@@ -31,32 +32,51 @@ class SwitchWidget extends ConsumerWidget {
             onTap: toggle,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              width: 64, height: 64,
+              width: 64,
+              height: 34,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(99),
                 color: isOn
-                    ? const Color(0xFF0EA5E9).withValues(alpha: 0.15)
-                    : Colors.white.withValues(alpha: 0.04),
+                    ? color.withValues(alpha: 0.85)
+                    : Colors.white.withValues(alpha: 0.08),
                 border: Border.all(
-                  color: isOn
-                      ? const Color(0xFF0EA5E9)
-                      : Colors.white.withValues(alpha: 0.12),
-                  width: 2,
+                  color: isOn ? color : Colors.white.withValues(alpha: 0.18),
+                  width: 1.5,
                 ),
                 boxShadow: isOn
                     ? [
                         BoxShadow(
-                            color:        const Color(0xFF0EA5E9).withValues(alpha: 0.35),
-                            blurRadius:   20,
-                            spreadRadius: 2),
+                          color: color.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
                       ]
                     : [],
               ),
-              child: Center(
-                child: LucideIcons.power(
-                  color: isOn ? const Color(0xFF0EA5E9) : Colors.white24,
-                  size: 26,
-                ),
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    left: isOn ? 34 : 4,
+                    top: 5,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isOn ? Colors.white : Colors.white54,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -64,7 +84,7 @@ class SwitchWidget extends ConsumerWidget {
           Text(
             isOn ? w.onLabel : w.offLabel,
             style: TextStyle(
-              color:         isOn ? const Color(0xFF0EA5E9) : Colors.white38,
+              color:         isOn ? color : Colors.white38,
               fontSize:      13,
               fontWeight:    FontWeight.w700,
               letterSpacing: 0.5,
