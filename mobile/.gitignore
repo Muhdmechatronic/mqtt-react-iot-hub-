@@ -1,0 +1,153 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+.pub-cache/
+build/
+coverage/
+
+# Flutter generated
+generated_plugin_registrant.dart
+
+# Flutter web
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/key.properties
+
+# Android build outputs
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# Android Studio
+android/.idea/
+
+# iOS
+ios/.symlinks/
+ios/Pods/
+ios/Flutter/.last_build_id
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# macOS
+macos/Pods/
+
+# Linux
+linux/flutter/ephemeral/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Flutter ephemeral
+**/ephemeral/
+
+# Symbolication
+app.*.symbols
+
+# Obfuscation
+app.*.map.json
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+
+# Crashlytics
+crashlytics-build.properties
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Logs
+logs/
+*.log
+
+# Test coverage
+coverage/
+
+# Generated files
+*.lock.pid
+
+# Dart documentation
+doc/api/
+
+# FVM (if used)
+.fvm/
+
+# Melos (if used)
+.melos_tool/
+
+# Fastlane (optional)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+
+# CocoaPods
+Podfile.lock
+
+# Generated localization
+lib/generated/
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa

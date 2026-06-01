@@ -9,12 +9,14 @@ const db = require('./config/db');
 const mqttGateway      = require('./mqtt/gateway');
 const wsHandler        = require('./websocket/handler');
 const heartbeatWorker  = require('./heartbeatWorker');
-const authRoutes   = require('./routes/auth');
-const deviceRoutes = require('./routes/device');
-const sensorRoutes = require('./routes/sensor');
-const dashboardRoutes   = require('./routes/dashboard');
-const datastreamRoutes  = require('./routes/datastream');
-const sandboxRoutes     = require('./routes/sandbox');
+const authRoutes          = require('./routes/auth');
+const deviceRoutes        = require('./routes/device');
+const sensorRoutes        = require('./routes/sensor');
+const dashboardRoutes     = require('./routes/dashboard');
+const datastreamRoutes    = require('./routes/datastream');
+const sandboxRoutes       = require('./routes/sandbox');
+const googleAssistantRoutes     = require('./routes/googleAssistant');
+const googleAssistantAuthRoutes = require('./routes/googleAssistantAuth');
 
 // Support comma-separated origins or '*' for LAN / multi-device setups
 const rawOrigin = process.env.FRONTEND_URL || '*';
@@ -36,12 +38,14 @@ app.use(express.json());
 app.use((req, _res, next) => { req.io = io; next(); });
 
 // ---- routes ----
-app.use('/api/auth',      authRoutes);
-app.use('/api/device',    deviceRoutes);
-app.use('/api/sensor',    sensorRoutes);
-app.use('/api/dashboard',   dashboardRoutes);
-app.use('/api/datastream',  datastreamRoutes);
-app.use('/api/sandbox',     sandboxRoutes);
+app.use('/api/auth',             authRoutes);
+app.use('/api/device',           deviceRoutes);
+app.use('/api/sensor',           sensorRoutes);
+app.use('/api/dashboard',        dashboardRoutes);
+app.use('/api/datastream',       datastreamRoutes);
+app.use('/api/sandbox',          sandboxRoutes);
+app.use('/api/google-assistant', googleAssistantRoutes);
+app.use('/api/auth',            googleAssistantAuthRoutes); // adds /oauth + /token + /login endpoints
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date() }));
 
@@ -181,3 +185,43 @@ async function ensureSandboxTemplatesTable() {
   }
 }
 ensureSandboxTemplatesTable();
+
+// ── Google OAuth columns on users table ───────────────────────────────────────
+async function ensureGoogleOAuthColumns() {
+  try {
+    const [cols] = await db.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+         AND COLUMN_NAME IN ('google_id', 'avatar_url')`
+    );
+    const existing = cols.map(c => c.COLUMN_NAME);
+
+    if (!existing.includes('google_id')) {
+      await db.query(
+        'ALTER TABLE users ADD COLUMN google_id VARCHAR(128) NULL UNIQUE AFTER email'
+      );
+      console.log('[init] users.google_id column added');
+    }
+    if (!existing.includes('avatar_url')) {
+      await db.query(
+        'ALTER TABLE users ADD COLUMN avatar_url TEXT NULL AFTER google_id'
+      );
+      console.log('[init] users.avatar_url column added');
+    }
+
+    // Allow password to be NULL for Google-only accounts
+    const [pwCols] = await db.query(
+      `SELECT IS_NULLABLE FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'password'`
+    );
+    if (pwCols.length && pwCols[0].IS_NULLABLE === 'NO') {
+      await db.query(
+        'ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL'
+      );
+      console.log('[init] users.password made nullable for OAuth accounts');
+    }
+  } catch (e) {
+    console.warn('[init] ensureGoogleOAuthColumns failed:', e.message);
+  }
+}
+ensureGoogleOAuthColumns();

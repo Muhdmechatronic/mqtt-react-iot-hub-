@@ -153,3 +153,5 @@ arduino-library/.arduino15/
 .piolibdeps/
 .clang_complete
 .gcc-flags.json
+# Added by code-review-graph
+.code-review-graph/

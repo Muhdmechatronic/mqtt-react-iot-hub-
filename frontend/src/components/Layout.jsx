@@ -6,8 +6,9 @@ import api from '../services/api';
 import {
   Cpu, Radio, Download, LayoutDashboard, Code2,
   Activity, Layers, LogOut, ChevronLeft, ChevronRight,
-  ChevronDown, Plus, X, Check, Sun, Moon,
+  ChevronDown, Plus, X, Check, Sun, Moon, Trash2, Pencil,
 } from 'lucide-react';
+import VoiceControl from './VoiceControl';
 
 const EXPANDED_W = 232;
 const COLLAPSED_W = 64;
@@ -33,18 +34,20 @@ function NavItem({ to, icon: Icon, label, collapsed }) {
 }
 
 export default function Layout() {
-  const { logout }         = useAuth();
+  const { logout, user }   = useAuth();
   const { dark, toggle }   = useTheme();
   const navigate           = useNavigate();
   const location           = useLocation();
 
-  const [collapsed,   setCollapsed]   = useState(false);
-  const [dashboards,  setDashboards]  = useState([]);
-  const [addingDash,  setAddingDash]  = useState(false);
-  const [newDashName, setNewDashName] = useState('');
-  const [devZoneOpen, setDevZoneOpen] = useState(
+  const [collapsed,    setCollapsed]    = useState(false);
+  const [dashboards,   setDashboards]   = useState([]);
+  const [addingDash,   setAddingDash]   = useState(false);
+  const [newDashName,  setNewDashName]  = useState('');
+  const [devZoneOpen,  setDevZoneOpen]  = useState(
     () => location.pathname.startsWith('/developer')
   );
+  // Tracks whether the currently active dashboard is in edit mode
+  const [dashEditing, setDashEditing] = useState(false);
 
   useEffect(() => {
     const fetchDashboards = () => api.get('/dashboard').then(r => setDashboards(r.data)).catch(() => {});
@@ -53,14 +56,29 @@ export default function Layout() {
     function onDeleted({ detail }) {
       setDashboards(prev => prev.filter(d => d.id !== detail.id));
     }
+    function onEditChanged({ detail }) {
+      setDashEditing(detail?.editing ?? false);
+    }
 
-    window.addEventListener('iot:dashboard-created', fetchDashboards);
-    window.addEventListener('iot:dashboard-deleted', onDeleted);
+    window.addEventListener('iot:dashboard-created',      fetchDashboards);
+    window.addEventListener('iot:dashboard-deleted',      onDeleted);
+    window.addEventListener('iot:dashboard:edit-changed', onEditChanged);
     return () => {
-      window.removeEventListener('iot:dashboard-created', fetchDashboards);
-      window.removeEventListener('iot:dashboard-deleted', onDeleted);
+      window.removeEventListener('iot:dashboard-created',      fetchDashboards);
+      window.removeEventListener('iot:dashboard-deleted',      onDeleted);
+      window.removeEventListener('iot:dashboard:edit-changed', onEditChanged);
     };
   }, []);
+
+  async function deleteDashboard(dashId, dashName) {
+    if (!window.confirm(`Delete "${dashName}"?\nAll widgets will be removed. This cannot be undone.`)) return;
+    try {
+      await api.delete(`/dashboard/${dashId}`);
+      setDashboards(prev => prev.filter(d => d.id !== dashId));
+      window.dispatchEvent(new CustomEvent('iot:dashboard-deleted', { detail: { id: dashId } }));
+      if (location.pathname === `/dashboard/${dashId}`) navigate('/devices');
+    } catch { alert('Failed to delete dashboard'); }
+  }
 
   useEffect(() => {
     if (location.pathname.startsWith('/developer')) setDevZoneOpen(true);
@@ -90,11 +108,11 @@ export default function Layout() {
   const devZoneActive = location.pathname.startsWith('/developer');
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
       <aside
         style={{ width: collapsed ? COLLAPSED_W : EXPANDED_W, minWidth: collapsed ? COLLAPSED_W : EXPANDED_W }}
-        className="flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-250 overflow-hidden relative z-10 shadow-sm dark:shadow-none"
+        className="flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-250 overflow-hidden relative z-10 shadow-sm dark:shadow-none h-screen"
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -107,10 +125,26 @@ export default function Layout() {
           </div>
         </div>
 
+        {/* User profile */}
+        {user && (
+          <div className={`flex items-center gap-2.5 px-3 py-3 border-b border-slate-200 dark:border-slate-800 overflow-hidden ${collapsed ? 'justify-center' : ''}`}>
+            {user.avatar
+              ? <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full shrink-0 ring-2 ring-sky-500/30 object-cover" referrerPolicy="no-referrer" />
+              : <div className="w-7 h-7 rounded-full shrink-0 bg-gradient-to-br from-sky-400 to-violet-500 flex items-center justify-center text-xs font-bold text-white">
+                  {(user.name || user.email || '?')[0].toUpperCase()}
+                </div>
+            }
+            <div className={`overflow-hidden transition-all duration-200 min-w-0 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[140px]'}`}>
+              <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap truncate">{user.name || 'User'}</div>
+              <div className="text-[10px] text-slate-400 whitespace-nowrap truncate">{user.email}</div>
+            </div>
+          </div>
+        )}
+
         {/* Nav */}
         <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden scrollbar-thin">
           <NavItem to="/devices" icon={Radio}    label="Devices"     collapsed={collapsed} />
-          <NavItem to="/export"  icon={Download} label="Export Data" collapsed={collapsed} />
+          <NavItem to="/export"  icon={Download} label="Export Data"  collapsed={collapsed} />
 
           <div className={`overflow-hidden transition-all duration-200 ${collapsed ? 'opacity-0 max-h-0' : 'opacity-100 max-h-8'}`}>
             <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-widest px-3 pt-4 pb-1">
@@ -118,24 +152,70 @@ export default function Layout() {
             </p>
           </div>
 
-          {dashboards.map(d => (
-            <NavLink
-              key={d.id}
-              to={`/dashboard/${d.id}`}
-              title={collapsed ? d.name : undefined}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 border overflow-hidden
-                ${isActive
-                  ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium border-sky-500/20'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 border-transparent'}`
-              }
-            >
-              <LayoutDashboard size={14} className="shrink-0" />
-              <span className={`overflow-hidden whitespace-nowrap text-ellipsis transition-all duration-200 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[140px]'}`}>
-                {d.name}
-              </span>
-            </NavLink>
-          ))}
+          {dashboards.map(d => {
+            const isCurrentDash = location.pathname === `/dashboard/${d.id}`;
+            return (
+              <div key={d.id} className="relative group/dash">
+                <NavLink
+                  to={`/dashboard/${d.id}`}
+                  title={collapsed ? d.name : undefined}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 border overflow-hidden w-full
+                    ${isActive
+                      ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium border-sky-500/20'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 border-transparent'}`
+                  }
+                >
+                  <LayoutDashboard size={14} className="shrink-0" />
+                  <span className={`overflow-hidden whitespace-nowrap text-ellipsis transition-all duration-200 ${collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[100px]'}`}>
+                    {d.name}
+                  </span>
+                  {/* Edit mode pulse dot */}
+                  {isCurrentDash && dashEditing && !collapsed && (
+                    <span className="ml-auto mr-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                  )}
+                </NavLink>
+
+                {/* Hover-reveal action buttons — hidden when sidebar is collapsed */}
+                {!collapsed && (
+                  <div className="absolute inset-y-0 right-1 flex items-center gap-0.5 opacity-0 group-hover/dash:opacity-100 transition-opacity duration-150 z-10">
+                    {/* Add Widget — only for the active dashboard */}
+                    {isCurrentDash && (
+                      <button
+                        title="Add Widget"
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('iot:dashboard:add-widget')); }}
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:text-sky-400 hover:bg-sky-500/10 dark:hover:bg-sky-500/15 transition-colors"
+                      >
+                        <Plus size={11} />
+                      </button>
+                    )}
+                    {/* Edit Layout — only for the active dashboard */}
+                    {isCurrentDash && (
+                      <button
+                        title={dashEditing ? 'Done Editing' : 'Edit Layout'}
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('iot:dashboard:toggle-edit')); }}
+                        className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+                          dashEditing
+                            ? 'text-amber-400 hover:bg-amber-500/10'
+                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/50'
+                        }`}
+                      >
+                        {dashEditing ? <Check size={11} /> : <Pencil size={11} />}
+                      </button>
+                    )}
+                    {/* Delete — always shown on hover */}
+                    <button
+                      title="Delete Dashboard"
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); deleteDashboard(d.id, d.name); }}
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {!collapsed && (
             addingDash ? (
@@ -265,6 +345,9 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto min-w-0 p-6 bg-slate-50 dark:bg-slate-950">
         <Outlet />
       </main>
+
+      {/* ── Floating voice control button ─────────────────────────────────────── */}
+      <VoiceControl />
     </div>
   );
 }

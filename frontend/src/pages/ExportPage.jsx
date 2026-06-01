@@ -1,44 +1,56 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const s = {
-  page:       { color: '#e2e8f0', maxWidth: 740 },
-  title:      { fontSize: 22, fontWeight: 700, color: '#f1f5f9', marginBottom: 4 },
-  subtitle:   { fontSize: 13, color: '#64748b', marginBottom: 28 },
-  card:       { background: '#1e293b', borderRadius: 12, padding: 24, marginBottom: 20, border: '1px solid #1e3a5f' },
-  stepLabel:  { fontSize: 11, fontWeight: 700, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 },
-  fieldLabel: { display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 5 },
-  select:     { width: '100%', padding: '10px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' },
-  input:      { width: '100%', padding: '10px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' },
-  grid2:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  hint:       { fontSize: 11, color: '#475569', marginTop: 6 },
+// ── Theme-aware styles ────────────────────────────────────────────────────────
+function makeStyles(dark) {
+  const bg0   = dark ? '#0f172a' : '#ffffff';
+  const bg1   = dark ? '#1e293b' : '#f8fafc';
+  const bdr   = dark ? '#1e3a5f' : '#e2e8f0';
+  const bdr2  = dark ? '#334155' : '#d1d5db';
+  const bdr3  = dark ? '#1e293b' : '#e5e7eb';
+  const txt   = dark ? '#e2e8f0' : '#1e293b';
+  const txth  = dark ? '#f1f5f9' : '#0f172a';
+  const txt2  = dark ? '#94a3b8' : '#475569';
+  const txt3  = dark ? '#475569' : '#94a3b8';
+  const pinBg = dark ? '#0c1a2e' : '#eff6ff';
+  const pinBgOn = dark ? '#0c1a2e' : '#dbeafe';
 
-  // Pin multi-select
-  pinGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6, marginTop: 10 },
-  pinRow:     { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, background: '#0f172a', border: '1px solid #1e293b', cursor: 'pointer', userSelect: 'none' },
-  pinRowOn:   { borderColor: '#0ea5e9', background: '#0c1a2e' },
-  checkbox:   { width: 15, height: 15, accentColor: '#0ea5e9', cursor: 'pointer', flexShrink: 0 },
-  pinBadge:   { fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#38bdf8', background: '#0c1a2e', border: '1px solid #1e3a5f', borderRadius: 4, padding: '2px 6px', flexShrink: 0 },
-  pinName:    { fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  pinUnit:    { fontSize: 11, color: '#475569', marginLeft: 'auto', flexShrink: 0 },
+  return {
+    page:       { color: txt, maxWidth: 740 },
+    title:      { fontSize: 22, fontWeight: 700, color: txth, marginBottom: 4 },
+    subtitle:   { fontSize: 13, color: txt2, marginBottom: 28 },
+    card:       { background: bg1, borderRadius: 12, padding: 24, marginBottom: 20, border: `1px solid ${bdr}` },
+    stepLabel:  { fontSize: 11, fontWeight: 700, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 },
+    fieldLabel: { display: 'block', fontSize: 12, color: txt2, marginBottom: 5 },
+    select:     { width: '100%', padding: '10px 12px', background: bg0, border: `1px solid ${bdr2}`, borderRadius: 8, color: txt, fontSize: 14, outline: 'none', boxSizing: 'border-box' },
+    input:      { width: '100%', padding: '10px 12px', background: bg0, border: `1px solid ${bdr2}`, borderRadius: 8, color: txt, fontSize: 14, outline: 'none', boxSizing: 'border-box' },
+    grid2:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
+    hint:       { fontSize: 11, color: txt3, marginTop: 6 },
 
-  // Footer
-  footer:     { display: 'flex', alignItems: 'center', gap: 16 },
-  btnExport:  { display: 'flex', alignItems: 'center', gap: 8, background: '#0ea5e9', border: 'none', borderRadius: 8, color: '#fff', padding: '11px 24px', cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  btnDis:     { opacity: 0.5, cursor: 'not-allowed' },
-  rowCount:   { fontSize: 13, color: '#64748b' },
-  errTxt:     { fontSize: 13, color: '#f87171' },
+    pinGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6, marginTop: 10 },
+    pinRow:     { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, background: bg0, border: `1px solid ${bdr3}`, cursor: 'pointer', userSelect: 'none' },
+    pinRowOn:   { borderColor: '#0ea5e9', background: pinBgOn },
+    checkbox:   { width: 15, height: 15, accentColor: '#0ea5e9', cursor: 'pointer', flexShrink: 0 },
+    pinBadge:   { fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#38bdf8', background: pinBg, border: `1px solid ${bdr}`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 },
+    pinName:    { fontSize: 12, color: dark ? '#cbd5e1' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    pinUnit:    { fontSize: 11, color: txt3, marginLeft: 'auto', flexShrink: 0 },
 
-  // Select-all row
-  selAllRow:  { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0 10px', borderBottom: '1px solid #1e293b', marginBottom: 10 },
-  selAllLbl:  { fontSize: 12, fontWeight: 600, color: '#94a3b8', cursor: 'pointer' },
-  dsCount:    { fontSize: 11, color: '#475569', marginLeft: 'auto' },
+    footer:     { display: 'flex', alignItems: 'center', gap: 16 },
+    btnExport:  { display: 'flex', alignItems: 'center', gap: 8, background: '#0ea5e9', border: 'none', borderRadius: 8, color: '#fff', padding: '11px 24px', cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+    btnDis:     { opacity: 0.5, cursor: 'not-allowed' },
+    rowCount:   { fontSize: 13, color: txt2 },
+    errTxt:     { fontSize: 13, color: '#f87171' },
 
-  empty:      { fontSize: 13, color: '#475569', padding: '20px 0' },
-  spinner:    { fontSize: 12, color: '#38bdf8' },
-};
+    selAllRow:  { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0 10px', borderBottom: `1px solid ${bdr3}`, marginBottom: 10 },
+    selAllLbl:  { fontSize: 12, fontWeight: 600, color: txt2, cursor: 'pointer' },
+    dsCount:    { fontSize: 11, color: txt3, marginLeft: 'auto' },
+
+    empty:      { fontSize: 13, color: txt3, padding: '20px 0' },
+    spinner:    { fontSize: 12, color: '#38bdf8' },
+  };
+}
 
 // ── Timezone conversion ───────────────────────────────────────────────────────
 // All timestamps stored in DB are UTC. Offset MYT = UTC+8.
@@ -154,6 +166,9 @@ function generateXlsx(rows, deviceId) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ExportPage() {
+  const { dark } = useTheme();
+  const s = makeStyles(dark);
+
   const [devices,     setDevices]     = useState([]);
   const [deviceId,    setDeviceId]    = useState('');
   const [datastreams, setDatastreams] = useState([]);

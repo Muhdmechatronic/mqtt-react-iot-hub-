@@ -51,6 +51,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('iot_user');
     setToken(null);
     setUser(null);
+    // Revoke Google session so user sees the account picker on next login
+    try { window.google?.accounts?.id?.disableAutoSelect(); } catch {}
   }, []);
 
   function login(tokenVal, userVal) {
@@ -58,6 +60,8 @@ export function AuthProvider({ children }) {
     localStorage.setItem('iot_user', JSON.stringify(userVal));
     setToken(tokenVal);
     setUser(userVal);
+    // Revoke any previous Google session so the picker re-shows on next logout
+    try { window.google?.accounts?.id?.disableAutoSelect(); } catch {}
   }
 
   // ── Periodic expiry check ──────────────────────────────────────────────────

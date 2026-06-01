@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { Target, SlidersHorizontal, ToggleRight, AreaChart, Lightbulb, Square, BarChart2, X, Check } from 'lucide-react';
+import { Target, SlidersHorizontal, ToggleRight, AreaChart, Lightbulb, Square, BarChart2, X, Check, Mic } from 'lucide-react';
 
 // ── Primitive UI components ───────────────────────────────────────────────────
 
@@ -530,6 +530,86 @@ function GenericForm({ s, set, type }) {
   );
 }
 
+// ── Voice command section (shared across all widget types) ─────────────────────
+function VoiceCommandSection({ s, set }) {
+  const hasLabel = !!(s.voiceLabel || '').trim();
+  return (
+    <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #0f172a' }}>
+
+      {/* Section header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+        <div style={{
+          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+          background: 'rgba(14,165,233,0.12)',
+          border: '1px solid rgba(14,165,233,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Mic size={11} style={{ color: '#38bdf8' }} />
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#0284c7', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
+          Voice Command
+        </span>
+        {hasLabel && (
+          <span style={{
+            marginLeft: 'auto', fontSize: 9, fontWeight: 700,
+            color: '#22c55e', background: 'rgba(34,197,94,0.1)',
+            border: '1px solid rgba(34,197,94,0.2)',
+            borderRadius: 99, padding: '1px 7px', letterSpacing: '0.4px',
+          }}>SET</span>
+        )}
+      </div>
+
+      {/* Trigger phrase input */}
+      <div style={{ marginBottom: 6, fontSize: 11, color: '#475569', fontWeight: 600 }}>
+        Voice trigger phrase
+      </div>
+      <div style={{ position: 'relative' }}>
+        <Mic size={12} style={{
+          position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+          color: hasLabel ? '#0284c7' : '#334155', pointerEvents: 'none',
+        }} />
+        <input
+          style={{
+            ...iStyle,
+            paddingLeft: 28,
+            borderColor: hasLabel ? 'rgba(2,132,199,0.5)' : '#1e293b',
+            background: hasLabel ? 'rgba(2,132,199,0.04)' : '#020617',
+            transition: 'border-color 0.15s, background 0.15s',
+          }}
+          value={s.voiceLabel ?? ''}
+          onChange={e => set('voiceLabel', e.target.value)}
+          placeholder='e.g. fan1  or  bedroom light'
+          onFocus={e => { e.target.style.borderColor = '#0284c7'; e.target.style.background = 'rgba(2,132,199,0.06)'; }}
+          onBlur={e => {
+            e.target.style.borderColor = hasLabel ? 'rgba(2,132,199,0.5)' : '#1e293b';
+            e.target.style.background = hasLabel ? 'rgba(2,132,199,0.04)' : '#020617';
+          }}
+        />
+      </div>
+
+      {/* Example preview */}
+      {hasLabel ? (
+        <div style={{
+          marginTop: 8, padding: '7px 10px', borderRadius: 8,
+          background: 'rgba(14,165,233,0.06)', border: '1px solid rgba(14,165,233,0.15)',
+        }}>
+          <div style={{ fontSize: 10, color: '#475569', marginBottom: 3, fontWeight: 600 }}>Example phrases that will work:</div>
+          <div style={{ fontSize: 11, color: '#38bdf8', fontStyle: 'italic', lineHeight: 1.8 }}>
+            "turn on {s.voiceLabel}"<br />
+            "turn off {s.voiceLabel}"<br />
+            "set {s.voiceLabel} to 50 percent"
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginTop: 7, fontSize: 11, color: '#334155', lineHeight: 1.6 }}>
+          Leave empty to use the widget title for voice matching.
+          Set a short keyword like <span style={{ color: '#475569', fontStyle: 'italic' }}>fan1</span> or <span style={{ color: '#475569', fontStyle: 'italic' }}>bedroom light</span>.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Type registry ─────────────────────────────────────────────────────────────
 const TYPE_META = {
   gauge:       { Icon: Target,            label: 'Gauge' },
@@ -622,6 +702,9 @@ export default function SandboxConfigPanel({ widget, deviceId, mockValue, onClos
         {!['gauge','slider','progressbar','switch','button','led','linechart'].includes(widget.type) && (
           <GenericForm s={settings} set={set} type={widget.type} />
         )}
+
+        {/* Voice command section — always shown for every widget type */}
+        <VoiceCommandSection s={settings} set={set} />
       </div>
 
       {/* Footer — Apply / Discard */}

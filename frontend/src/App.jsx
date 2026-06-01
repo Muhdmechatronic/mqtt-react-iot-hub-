@@ -1,15 +1,15 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import LoginPage      from './pages/LoginPage';
-import RegisterPage   from './pages/RegisterPage';
-import DevicesPage    from './pages/DevicesPage';
-import DashboardPage  from './pages/DashboardPage';
-import ExportPage     from './pages/ExportPage';
-import DatastreamPage from './pages/DatastreamPage';
+import LoginPage        from './pages/LoginPage';
+import RegisterPage     from './pages/RegisterPage';
+import DevicesPage      from './pages/DevicesPage';
+import DashboardPage    from './pages/DashboardPage';
+import ExportPage       from './pages/ExportPage';
+import DatastreamPage   from './pages/DatastreamPage';
 import DeviceConfigPage from './pages/DeviceConfigPage';
-import SandboxPage    from './pages/SandboxPage';
-import Layout         from './components/Layout';
+import SandboxPage      from './pages/SandboxPage';
+import Layout           from './components/Layout';
 
 function PrivateRoute({ children }) {
   const { token } = useAuth();

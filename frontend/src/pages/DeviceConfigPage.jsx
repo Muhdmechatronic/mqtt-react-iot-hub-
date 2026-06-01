@@ -27,7 +27,7 @@ function TabButton({ active, onClick, icon, label, badge }) {
       type="button"
       onClick={onClick}
       className={[
-        'relative flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all border-b-2',
+        'relative flex items-center gap-2 px-4 sm:px-5 py-3 text-sm font-semibold transition-all border-b-2 shrink-0 whitespace-nowrap',
         active
           ? 'text-sky-400 border-sky-500 bg-slate-900/40'
           : 'text-slate-500 border-transparent hover:text-slate-300 hover:border-slate-600',
@@ -108,8 +108,8 @@ export default function DeviceConfigPage() {
 
       {/* ── Page header ── */}
       <div className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex items-center justify-between py-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 sm:py-4 gap-2 sm:gap-0">
             <div>
               <h1 className="text-lg font-bold text-slate-100">Device Configuration Builder</h1>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -138,8 +138,8 @@ export default function DeviceConfigPage() {
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex">
+          {/* Tabs — horizontally scrollable on mobile */}
+          <div className="flex overflow-x-auto scrollbar-none -mx-4 sm:-mx-6 px-4 sm:px-6 touch-pan-x">
             {TABS.map(tab => (
               <TabButton
                 key={tab.id}
@@ -155,7 +155,7 @@ export default function DeviceConfigPage() {
       </div>
 
       {/* ── Content area ── */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* ══ Tab 1: Datastream Engine ══════════════════════════════════════════ */}
         {activeTab === 'datastream' && (

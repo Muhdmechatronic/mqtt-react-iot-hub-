@@ -153,4 +153,15 @@ async function getDeviceState(req, res) {
   res.json(result);
 }
 
-module.exports = { register, list, pushData, sendCommand, ping, getDeviceState };
+async function deleteDevice(req, res) {
+  const deviceId = parseInt(req.params.id);
+  if (!deviceId) return res.status(400).json({ error: 'Invalid device id' });
+  try {
+    await deviceService.deleteDevice(deviceId, req.user.id);
+    res.json({ message: 'Device deleted' });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+}
+
+module.exports = { register, list, pushData, sendCommand, ping, getDeviceState, deleteDevice };

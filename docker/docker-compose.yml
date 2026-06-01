@@ -1,5 +1,12 @@
 version: '3.9'
 
+# ── How to use ─────────────────────────────────────────────────────────────────
+# 1. Copy docker/.env.example → docker/.env and fill in your Firebase credentials
+# 2. Run: docker compose up -d --build
+#
+# docker/.env is loaded automatically by Docker Compose.
+# ──────────────────────────────────────────────────────────────────────────────
+
 services:
 
   mysql:
@@ -14,8 +21,10 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ../database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    ports:
-      - "3306:3306"
+    # Port 3306 not exposed to host — containers communicate internally.
+    # Uncomment below only if you need external DB access and stop local MySQL first.
+    # ports:
+    #   - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -57,9 +66,9 @@ services:
       JWT_EXPIRES_IN: 7d
       MQTT_HOST: mosquitto
       MQTT_PORT: 1883
-      # '*' allows any LAN device (phone, Pi, laptop) to open the dashboard.
-      # To restrict: set to your PC's LAN IP, e.g. http://192.168.1.100:5173
       FRONTEND_URL: "*"
+      # ── Firebase (backend token verification) ──
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
     ports:
       - "3000:3000"
 
@@ -67,10 +76,19 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      # ── Firebase config baked into the Vite bundle at build time ──
+      args:
+        VITE_FIREBASE_API_KEY:     ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID:  ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_APP_ID:      ${VITE_FIREBASE_APP_ID}
     container_name: iot_frontend
     restart: unless-stopped
+    volumes:
+      - ./certs:/etc/ssl/iot:ro   # mkcert certs — trusted by browser, no warning
     ports:
-      - "5173:80"
+      - "5173:443"   # HTTPS — access via https://localhost:5173
+      - "5174:80"    # HTTP  — auto-redirects to HTTPS
     depends_on:
       - backend
 

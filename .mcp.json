@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "C:\\Users\\aisya\\.conda\\envs\\app_python\\python.exe",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "cwd": "C:\\Users\\aisya\\OneDrive\\Documents\\project123\\iot-platform",
+      "type": "stdio"
+    }
+  }
+}

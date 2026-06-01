@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CLIENT_ID</key>
+  <string>20870417560-hgamfseh63i4ssv08qfs02r8c6q8q58o.apps.googleusercontent.com</string>
+  <key>REVERSED_CLIENT_ID</key>
+  <string>com.googleusercontent.apps.20870417560-hgamfseh63i4ssv08qfs02r8c6q8q58o</string>
+  <key>API_KEY</key>
+  <string>AIzaSyCP59d-RZ8-bf3vcMSP_mvvZOHMco6nDGI</string>
+  <key>GCM_SENDER_ID</key>
+  <string>20870417560</string>
+  <key>PLIST_VERSION</key>
+  <string>1</string>
+  <key>BUNDLE_ID</key>
+  <string>com.example.iotCompanion</string>
+  <key>PROJECT_ID</key>
+  <string>iot-platform-6b89a</string>
+  <key>STORAGE_BUCKET</key>
+  <string>iot-platform-6b89a.firebasestorage.app</string>
+  <key>IS_ADS_ENABLED</key>      <false/>
+  <key>IS_ANALYTICS_ENABLED</key><false/>
+  <key>IS_APPINVITE_ENABLED</key><true/>
+  <key>IS_GCM_ENABLED</key>      <true/>
+  <key>IS_SIGNIN_ENABLED</key>   <true/>
+  <key>GOOGLE_APP_ID</key>
+  <string>1:20870417560:ios:1d99c0b7c93143520594ed</string>
+</dict>
+</plist>

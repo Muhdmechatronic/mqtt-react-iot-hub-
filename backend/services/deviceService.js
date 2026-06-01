@@ -50,4 +50,11 @@ async function sendCommand({ deviceId, issuedBy, command, payload }) {
   return result.insertId;
 }
 
-module.exports = { registerDevice, getDevicesByUser, getDeviceByApiKey, getDeviceById, markOnline, updatePing, sendCommand };
+async function deleteDevice(deviceId, userId) {
+  // Verify ownership before deleting
+  const [rows] = await db.query('SELECT id FROM devices WHERE id = ? AND user_id = ?', [deviceId, userId]);
+  if (!rows.length) throw new Error('Device not found or access denied');
+  await db.query('DELETE FROM devices WHERE id = ?', [deviceId]);
+}
+
+module.exports = { registerDevice, getDevicesByUser, getDeviceByApiKey, getDeviceById, markOnline, updatePing, sendCommand, deleteDevice };

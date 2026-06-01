@@ -1,5 +1,24 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+
+/* ── File helpers ─────────────────────────────────────────────────────────── */
+function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+}
+
+function readJsonFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => { try { resolve(JSON.parse(e.target.result)); } catch { reject(new Error('Invalid JSON file')); } };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsText(file);
+  });
+}
 
 // ── Unit groups ───────────────────────────────────────────────────────────────
 const UNIT_GROUPS = [
@@ -28,43 +47,58 @@ const UNIT_GROUPS = [
 
 const DATA_TYPES = ['integer', 'double', 'string'];
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const s = {
-  page:      { color: '#e2e8f0' },
-  header:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title:     { fontSize: 22, fontWeight: 700, color: '#f1f5f9' },
-  subtitle:  { fontSize: 13, color: '#64748b', marginTop: 2 },
-  toolbar:   { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 },
-  select:    { padding: '9px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', fontSize: 13, outline: 'none' },
-  btnPrimary:{ background: '#0ea5e9', border: 'none', borderRadius: 8, color: '#fff', padding: '9px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
-  table:     { width: '100%', borderCollapse: 'collapse' },
-  th:        { padding: '10px 14px', background: '#0f172a', color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', textAlign: 'left', borderBottom: '1px solid #1e293b' },
-  td:        { padding: '12px 14px', borderBottom: '1px solid #1e293b', fontSize: 13, verticalAlign: 'middle' },
-  pin:       { display: 'inline-block', background: '#0c1a2e', border: '1px solid #1e3a5f', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, color: '#38bdf8', fontFamily: 'monospace' },
-  typeBadge: { display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600 },
-  actionBtn: { background: 'none', border: '1px solid #334155', borderRadius: 6, color: '#94a3b8', padding: '5px 10px', cursor: 'pointer', fontSize: 12 },
-  delBtn:    { background: 'none', border: '1px solid #ef444455', borderRadius: 6, color: '#ef4444', padding: '5px 10px', cursor: 'pointer', fontSize: 12 },
-  emptyRow:  { textAlign: 'center', padding: 48, color: '#475569', fontSize: 14 },
+// ── Theme-aware styles ────────────────────────────────────────────────────────
+function makeStyles(dark) {
+  const bg0  = dark ? '#0f172a' : '#ffffff';
+  const bg1  = dark ? '#0a0f1a' : '#f1f5f9';
+  const bg2  = dark ? '#1e293b' : '#f8fafc';
+  const bdr  = dark ? '#1e3a5f' : '#e2e8f0';
+  const bdr2 = dark ? '#334155' : '#d1d5db';
+  const bdr3 = dark ? '#1e293b' : '#e5e7eb';
+  const txt  = dark ? '#e2e8f0' : '#1e293b';
+  const txth = dark ? '#f1f5f9' : '#0f172a';
+  const txt2 = dark ? '#64748b' : '#64748b';
+  const txt3 = dark ? '#94a3b8' : '#475569';
+  const txtd = dark ? '#334155' : '#9ca3af';
+  const pinBg = dark ? '#0c1a2e' : '#eff6ff';
 
-  // Modal
-  overlay:   { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 },
-  modal:     { background: '#1e293b', borderRadius: 14, width: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,.6)' },
-  mHead:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 24px 0' },
-  mTitle:    { fontSize: 16, fontWeight: 700, color: '#f1f5f9' },
-  closeBtn:  { background: 'none', border: 'none', color: '#64748b', fontSize: 22, cursor: 'pointer', lineHeight: 1 },
-  mBody:     { padding: '18px 24px 24px' },
-  label:     { display: 'block', fontSize: 11, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' },
-  input:     { width: '100%', padding: '9px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', fontSize: 14, boxSizing: 'border-box', outline: 'none' },
-  inputDis:  { width: '100%', padding: '9px 12px', background: '#0a0f1a', border: '1px solid #1e293b', borderRadius: 8, color: '#334155', fontSize: 14, boxSizing: 'border-box' },
-  row2:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-  row3:      { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 },
-  divider:   { borderTop: '1px solid #1e3a5f', margin: '18px 0' },
-  mFooter:   { display: 'flex', justifyContent: 'flex-end', gap: 10 },
-  btnCancel: { background: 'none', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '9px 20px', cursor: 'pointer', fontSize: 13 },
-  btnSave:   { background: '#0ea5e9', border: 'none', borderRadius: 8, color: '#fff', padding: '9px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 13 },
-  errTxt:    { color: '#ef4444', fontSize: 12, marginTop: 6 },
-  section:   { marginBottom: 16 },
-};
+  return {
+    page:      { color: txt },
+    header:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    title:     { fontSize: 22, fontWeight: 700, color: txth },
+    subtitle:  { fontSize: 13, color: txt2, marginTop: 2 },
+    toolbar:   { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 },
+    select:    { padding: '9px 12px', background: bg2, border: `1px solid ${bdr2}`, borderRadius: 8, color: txt, fontSize: 13, outline: 'none' },
+    btnPrimary:{ background: '#0ea5e9', border: 'none', borderRadius: 8, color: '#fff', padding: '9px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
+    table:     { width: '100%', borderCollapse: 'collapse' },
+    th:        { padding: '10px 14px', background: dark ? '#0f172a' : '#f1f5f9', color: txt2, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', textAlign: 'left', borderBottom: `1px solid ${bdr3}` },
+    td:        { padding: '12px 14px', borderBottom: `1px solid ${bdr3}`, fontSize: 13, verticalAlign: 'middle' },
+    pin:       { display: 'inline-block', background: pinBg, border: `1px solid ${bdr}`, borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, color: '#38bdf8', fontFamily: 'monospace' },
+    typeBadge: { display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600 },
+    actionBtn: { background: 'none', border: `1px solid ${bdr2}`, borderRadius: 6, color: txt3, padding: '5px 10px', cursor: 'pointer', fontSize: 12 },
+    delBtn:    { background: 'none', border: '1px solid #ef444455', borderRadius: 6, color: '#ef4444', padding: '5px 10px', cursor: 'pointer', fontSize: 12 },
+    emptyRow:  { textAlign: 'center', padding: 48, color: txt2, fontSize: 14 },
+
+    // Modal
+    overlay:   { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 },
+    modal:     { background: bg2, borderRadius: 14, width: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,.6)', border: `1px solid ${bdr3}` },
+    mHead:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 24px 0' },
+    mTitle:    { fontSize: 16, fontWeight: 700, color: txth },
+    closeBtn:  { background: 'none', border: 'none', color: txt2, fontSize: 22, cursor: 'pointer', lineHeight: 1 },
+    mBody:     { padding: '18px 24px 24px' },
+    label:     { display: 'block', fontSize: 11, color: txt2, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' },
+    input:     { width: '100%', padding: '9px 12px', background: bg0, border: `1px solid ${bdr2}`, borderRadius: 8, color: txt, fontSize: 14, boxSizing: 'border-box', outline: 'none' },
+    inputDis:  { width: '100%', padding: '9px 12px', background: bg1, border: `1px solid ${bdr3}`, borderRadius: 8, color: txtd, fontSize: 14, boxSizing: 'border-box' },
+    row2:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+    row3:      { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 },
+    divider:   { borderTop: `1px solid ${bdr}`, margin: '18px 0' },
+    mFooter:   { display: 'flex', justifyContent: 'flex-end', gap: 10 },
+    btnCancel: { background: 'none', border: `1px solid ${bdr2}`, borderRadius: 8, color: txt3, padding: '9px 20px', cursor: 'pointer', fontSize: 13 },
+    btnSave:   { background: '#0ea5e9', border: 'none', borderRadius: 8, color: '#fff', padding: '9px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 13 },
+    errTxt:    { color: '#ef4444', fontSize: 12, marginTop: 6 },
+    section:   { marginBottom: 16 },
+  };
+}
 
 const TYPE_COLORS = {
   integer: { background: '#0c2d4a', color: '#38bdf8' },
@@ -98,7 +132,7 @@ function emptyForm() {
 }
 
 // ── Datastream Modal ──────────────────────────────────────────────────────────
-function DatastreamModal({ deviceId, existing, takenPins, onClose, onSaved }) {
+function DatastreamModal({ deviceId, existing, takenPins, onClose, onSaved, s }) {
   const isEdit  = Boolean(existing);
   const [form,  setForm]  = useState(isEdit ? {
     virtual_pin:   String(existing.virtual_pin),
@@ -312,12 +346,18 @@ function DatastreamModal({ deviceId, existing, takenPins, onClose, onSaved }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DatastreamPage() {
+  const { dark } = useTheme();
+  const s = makeStyles(dark);
+
   const [devices,     setDevices]     = useState([]);
   const [deviceId,    setDeviceId]    = useState('');
   const [streams,     setStreams]     = useState([]);
   const [showModal,   setShowModal]   = useState(false);
   const [editTarget,  setEditTarget]  = useState(null);
   const [loading,     setLoading]     = useState(false);
+  const [importing,   setImporting]   = useState(false);
+  const [importMsg,   setImportMsg]   = useState('');
+  const importRef = useRef(null);
 
   useEffect(() => {
     api.get('/device/list').then(r => {
@@ -352,6 +392,67 @@ export default function DatastreamPage() {
 
   function onSaved() { setShowModal(false); setEditTarget(null); loadStreams(); }
 
+  /* ── Export ── */
+  function handleExport() {
+    if (!streams.length) return;
+    const device  = devices.find(d => String(d.id) === deviceId);
+    const payload = {
+      _meta: {
+        exported_at: new Date().toISOString(),
+        device_name: device?.name || 'unknown',
+        format:      'iot-platform-datastreams-v1',
+      },
+      datastreams: streams.map(({ id, device_id, created_at, updated_at, ...rest }) => rest),
+    };
+    const slug = (device?.name || 'device').replace(/\s+/g, '_');
+    downloadJson(payload, `datastreams_${slug}_${Date.now()}.json`);
+  }
+
+  /* ── Import ── */
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    if (!file || !deviceId) return;
+    e.target.value = '';
+    setImporting(true);
+    setImportMsg('');
+    try {
+      const raw     = await readJsonFile(file);
+      const entries = Array.isArray(raw) ? raw : (raw.datastreams ?? []);
+      if (!entries.length) { setImportMsg('No datastreams found in file'); setImporting(false); return; }
+
+      const existingPins = new Set(streams.map(s => s.virtual_pin));
+      let created = 0, skipped = 0;
+
+      for (const ds of entries) {
+        const pin = parseInt(ds.virtual_pin);
+        if (isNaN(pin) || !ds.name) { skipped++; continue; }
+        if (existingPins.has(pin)) { skipped++; continue; } // don't overwrite
+        try {
+          await api.post('/datastream', {
+            device_id:     parseInt(deviceId),
+            virtual_pin:   pin,
+            name:          ds.name,
+            display_name:  ds.display_name || ds.name,
+            data_type:     ds.data_type   || 'double',
+            access_type:   ds.access_type || 'READ_WRITE',
+            unit:          ds.unit        || null,
+            min_value:     ds.min_value   ?? null,
+            max_value:     ds.max_value   ?? null,
+            default_value: ds.default_value ?? null,
+          });
+          existingPins.add(pin);
+          created++;
+        } catch { skipped++; }
+      }
+      setImportMsg(`Imported ${created} datastream${created !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped — pin in use or invalid)` : ''}`);
+      loadStreams();
+    } catch (err) {
+      setImportMsg(err.message || 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const takenPins = new Set(streams.map(s => s.virtual_pin));
 
   const selectedDevice = devices.find(d => String(d.id) === deviceId);
@@ -364,10 +465,46 @@ export default function DatastreamPage() {
           <div style={s.title}>Datastreams</div>
           <div style={s.subtitle}>Virtual pin management — V0 to V255</div>
         </div>
-        <button style={s.btnPrimary} onClick={openCreate} disabled={!deviceId}>
-          + New Datastream
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Export */}
+          <button
+            onClick={handleExport}
+            disabled={!streams.length}
+            title="Export all datastreams for this device as a JSON file"
+            style={{ ...s.btnPrimary, background: '#0f766e', opacity: streams.length ? 1 : 0.4, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            ↓ Export JSON
+          </button>
+          {/* Import */}
+          <button
+            onClick={() => importRef.current?.click()}
+            disabled={!deviceId || importing}
+            title="Import datastreams from a JSON file (skips pins already in use)"
+            style={{ ...s.btnPrimary, background: '#7c3aed', opacity: deviceId ? 1 : 0.4, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            {importing ? '⏳ Importing…' : '↑ Import JSON'}
+          </button>
+          <input ref={importRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportFile} />
+          {/* New */}
+          <button style={s.btnPrimary} onClick={openCreate} disabled={!deviceId}>
+            + New Datastream
+          </button>
+        </div>
       </div>
+
+      {/* Import result message */}
+      {importMsg && (
+        <div style={{
+          marginBottom: 12, padding: '10px 16px', borderRadius: 8, fontSize: 13,
+          background: importMsg.startsWith('Imported') ? '#052e16' : '#2d0a0a',
+          border: `1px solid ${importMsg.startsWith('Imported') ? '#14532d' : '#450a0a'}`,
+          color: importMsg.startsWith('Imported') ? '#4ade80' : '#f87171',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span>{importMsg}</span>
+          <button onClick={() => setImportMsg('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Device selector */}
       <div style={s.toolbar}>
@@ -460,6 +597,7 @@ export default function DatastreamPage() {
           takenPins={takenPins}
           onClose={() => { setShowModal(false); setEditTarget(null); }}
           onSaved={onSaved}
+          s={s}
         />
       )}
     </div>

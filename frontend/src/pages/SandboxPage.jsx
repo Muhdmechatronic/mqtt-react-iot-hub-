@@ -1,5 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+/* ── File helpers ─────────────────────────────────────────────────────────── */
+function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+}
+
+function readJsonFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => { try { resolve(JSON.parse(e.target.result)); } catch { reject(new Error('Invalid JSON')); } };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsText(file);
+  });
+}
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -224,7 +242,7 @@ function DrawerItem({ meta, onDragStart }) {
         e.dataTransfer.setData('text/plain', meta.type);
         onDragStart(meta.type);
       }}
-      className="bg-slate-900 border border-slate-800 hover:border-sky-500/40 rounded-xl p-3 cursor-grab select-none mb-2 transition-colors duration-150"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500/40 rounded-xl p-3 cursor-grab select-none mb-2 transition-colors duration-150"
     >
       <div className="flex items-center gap-2 mb-2">
         <meta.Icon size={13} className="text-sky-400 shrink-0" />
@@ -248,7 +266,7 @@ function CanvasWidget({ widget, editMode, onCopy, onDelete, onSettings, datastre
 
   return (
     <div
-      className="w-full h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden relative"
+      className="w-full h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden relative"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -641,6 +659,7 @@ export default function SandboxPage() {
   const [tick,           setTick]           = useState(0);
   const droppingTypeRef = useRef(null);
   const canvasRef       = useRef(null);
+  const importFileRef   = useRef(null);
 
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 500);
@@ -748,6 +767,32 @@ export default function SandboxPage() {
     setSettingsWidget(null);
   }
 
+  /* ── Export canvas to file ── */
+  function handleExportFile() {
+    if (!widgets.length) return;
+    const payload = {
+      _meta: { exported_at: new Date().toISOString(), format: 'iot-platform-sandbox-v1', widget_count: widgets.length },
+      widgets: widgets.map(w => ({ ...w, id: undefined })), // strip IDs so import generates fresh ones
+    };
+    downloadJson(payload, `sandbox_template_${Date.now()}.json`);
+  }
+
+  /* ── Import canvas from file ── */
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const raw     = await readJsonFile(file);
+      const entries = Array.isArray(raw) ? raw : (raw.widgets ?? []);
+      if (!entries.length) return alert('No widgets found in the file.');
+      const imported = entries.map((w, i) => ({ ...w, id: `w_${Date.now()}_${i}`, x: w.x ?? 0, y: w.y ?? 0, w: w.w ?? 3, h: w.h ?? 3 }));
+      updateWidgets(imported);
+    } catch (err) {
+      alert(err.message || 'Failed to import file');
+    }
+  }
+
   // Cancel the Layout's p-6 padding so the sandbox fills the viewport edge-to-edge
   useEffect(() => {
     const main = document.querySelector('main');
@@ -765,10 +810,10 @@ export default function SandboxPage() {
   const droppingItem = { i: '__dropping__', w: sz.w, h: sz.h };
 
   return (
-    <div className="flex flex-col bg-slate-950 text-slate-200" style={{ height: '100vh', overflow: 'hidden' }}>
+    <div className="flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200" style={{ height: '100vh', overflow: 'hidden' }}>
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
-      <div className="bg-slate-900 border-b border-slate-800 px-5 py-3 flex items-center justify-between shrink-0">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
             <Layers size={14} className="text-violet-400" />
@@ -785,13 +830,13 @@ export default function SandboxPage() {
 
         <div className="flex items-center gap-3">
           {/* Device selector */}
-          <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5">
             <Cpu size={12} className="text-slate-500" />
             <span className="text-[11px] text-slate-500">Device:</span>
             <select
               value={deviceId}
               onChange={e => setDeviceId(e.target.value)}
-              className="bg-transparent border-none text-slate-300 text-[13px] outline-none cursor-pointer"
+              className="bg-transparent border-none text-slate-700 dark:text-slate-300 text-[13px] outline-none cursor-pointer"
             >
               {!devices.length && <option>No devices</option>}
               {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -803,6 +848,32 @@ export default function SandboxPage() {
               {widgets.length} widget{widgets.length !== 1 ? 's' : ''}
             </span>
           )}
+
+          {/* ── Export to file ── */}
+          <button
+            onClick={handleExportFile}
+            disabled={!widgets.length}
+            title="Export canvas as a .json file you can share"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-30"
+            style={{ background: 'rgba(15,118,110,.15)', borderColor: 'rgba(15,118,110,.4)', color: '#2dd4bf' }}
+            onMouseEnter={e => { if (widgets.length) e.currentTarget.style.background = 'rgba(15,118,110,.25)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(15,118,110,.15)'; }}
+          >
+            <DownloadIcon size={12} /> Export File
+          </button>
+
+          {/* ── Import from file ── */}
+          <button
+            onClick={() => importFileRef.current?.click()}
+            title="Import a .json template file"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+            style={{ background: 'rgba(109,40,217,.15)', borderColor: 'rgba(109,40,217,.4)', color: '#c4b5fd' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(109,40,217,.25)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(109,40,217,.15)'; }}
+          >
+            <Upload size={12} /> Import File
+          </button>
+          <input ref={importFileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportFile} />
 
           {/* Template: Load dropdown */}
           <TemplateLoader onLoad={updateWidgets} />
@@ -852,14 +923,14 @@ export default function SandboxPage() {
 
         {/* Widget Drawer */}
         <div
-          className="shrink-0 overflow-hidden bg-slate-900 border-r border-slate-800 transition-all duration-250"
+          className="shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-250"
           style={{ width: editMode ? 188 : 0 }}
         >
           {editMode && (
             <div className="flex flex-col h-full">
-              <div className="px-3 py-2.5 border-b border-slate-800 shrink-0">
-                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Widget Box</p>
-                <p className="text-[10px] text-slate-700 mt-0.5 flex items-center gap-1">
+              <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase tracking-widest">Widget Box</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-700 mt-0.5 flex items-center gap-1">
                   Drag onto canvas <ChevronRight size={10} />
                 </p>
               </div>
@@ -875,8 +946,8 @@ export default function SandboxPage() {
         {/* Canvas */}
         <div ref={canvasRef} className="flex-1 overflow-y-auto p-4 relative min-w-0">
           {!widgets.length && (
-            <div className="flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-800 rounded-2xl m-2 py-20">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-4">
+            <div className="flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl m-2 py-20">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-4">
                 {editMode
                   ? <ChevronRight size={24} className="text-slate-600" />
                   : <Layers size={24} className="text-slate-600" />
@@ -956,8 +1027,8 @@ export default function SandboxPage() {
       {/* Edit mode info bar */}
       {editMode && (
         <div className="bg-sky-500/10 border-t border-sky-500/20 px-5 py-2 flex items-center gap-3 shrink-0">
-          <span className="text-[11px] font-bold text-sky-400">EDIT MODE</span>
-          <span className="text-[11px] text-slate-600">Drag · Resize corners · Hover widget for Copy / Settings / Delete</span>
+          <span className="text-[11px] font-bold text-sky-500 dark:text-sky-400">EDIT MODE</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-600">Drag · Resize corners · Hover widget for Copy / Settings / Delete</span>
         </div>
       )}
 
