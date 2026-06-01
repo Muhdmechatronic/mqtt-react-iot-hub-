@@ -13,9 +13,14 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Firebase is used for Google Sign-In only.
+  // If it fails (e.g. missing google-services config), the app still starts
+  // and email/password login remains available.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (_) {}
 
   runApp(const ProviderScope(child: IotCompanionApp()));
 }

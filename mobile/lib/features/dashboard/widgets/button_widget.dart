@@ -22,7 +22,7 @@ class _ButtonWidgetState extends ConsumerState<ButtonWidget> {
     if (w.deviceId == null || w.dataKey == null) return;
     ref
         .read(deviceSyncProvider.notifier)
-        .writePin(w.deviceId!, w.dataKey!, v, widgetId: w.id);
+        .writePin(w.deviceId!, w.dataKey!, v, widgetId: w.id, command: 'relay');
   }
 
   void _onPressDown() {

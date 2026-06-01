@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
+import '../../services/api_client.dart';
 import '../../services/socket_service.dart';
 
 /// Central pin-state map:  deviceId → dataKey → value
-///   e.g.  { 3: { 'V0': 24.5, 'V1': 1.0 } }
 typedef PinStateMap = Map<int, Map<String, double>>;
 
 // ── Echo suppression ──────────────────────────────────────────────────────────
@@ -20,8 +20,8 @@ class _EchoEntry {
 // ── Notifier ──────────────────────────────────────────────────────────────────
 
 class DeviceSyncNotifier extends Notifier<PinStateMap> {
-  final _subs    = <StreamSubscription>[];
-  final _echoes  = <String, _EchoEntry>{};    // "deviceId:dataKey" → pending echo
+  final _subs   = <StreamSubscription>[];
+  final _echoes = <String, _EchoEntry>{};
 
   @override
   PinStateMap build() {
@@ -39,32 +39,49 @@ class DeviceSyncNotifier extends Notifier<PinStateMap> {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
-  /// Join the device's Socket.IO room so updates flow in.
-  void subscribe(int deviceId, {List<int> pins = const []}) {
-    ref.read(socketServiceProvider).subscribeDevice(deviceId, pins: pins);
-  }
+  void subscribe(int deviceId, {List<int> pins = const []}) =>
+      ref.read(socketServiceProvider).subscribeDevice(deviceId, pins: pins);
 
-  void unsubscribe(int deviceId) {
-    ref.read(socketServiceProvider).unsubscribeDevice(deviceId);
-  }
+  void unsubscribe(int deviceId) =>
+      ref.read(socketServiceProvider).unsubscribeDevice(deviceId);
 
-  /// Write a pin value via pin:write (server-side echo suppression already
-  /// excludes the sender's socket).  A sensor_update echo-suppression entry
-  /// is also registered for the legacy sensor_update path.
-  void writePin(int deviceId, String dataKey, double value, {int? widgetId}) {
+  /// Write a pin value to both Socket.IO (dashboard sync) AND the HTTP
+  /// /device/command endpoint (ESP32 hardware control).
+  /// Without the HTTP call, pin:write only syncs other dashboard clients
+  /// but never reaches the ESP32.
+  void writePin(
+    int deviceId,
+    String dataKey,
+    double value, {
+    int? widgetId,
+    String command = 'set',
+  }) {
     _registerEcho(deviceId, dataKey, value);
+
+    // 1. Socket.IO pin:write → real-time sync with other dashboard clients
     ref.read(socketServiceProvider).writePin(
       deviceId: deviceId,
       dataKey:  dataKey,
       value:    value,
       widgetId: widgetId,
     );
-    // Optimistic local update so UI responds immediately.
+
+    // 2. HTTP POST → sends 'command' event to the device's Socket.IO room
+    //    which the ESP32 firmware listens on to control hardware.
+    //    Fire-and-forget; optimistic update already applied below.
+    ref.read(dioProvider).post('/device/command', data: {
+      'device_id': deviceId,
+      'command':   command,
+      'payload':   {'value': value},
+      'data_key':  dataKey,
+    // ignore: invalid_return_type_for_catch_error
+    }).catchError((_) => null);
+
+    // 3. Optimistic local update for immediate UI response
     _applyUpdate(deviceId, dataKey, value);
   }
 
-  double? valueOf(int deviceId, String dataKey) =>
-      state[deviceId]?[dataKey];
+  double? valueOf(int deviceId, String dataKey) => state[deviceId]?[dataKey];
 
   // ── Internal handlers ─────────────────────────────────────────────────────
 
@@ -76,16 +93,12 @@ class DeviceSyncNotifier extends Notifier<PinStateMap> {
   }
 
   void _onPinUpdate(PinUpdateEvent e) {
-    // pin:update is already echo-suppressed server-side (sender socket excluded).
     final deviceId = int.tryParse(e.deviceId);
     if (deviceId == null) return;
-    final dataKey = 'V${e.virtualPin}';
-    _applyUpdate(deviceId, dataKey, e.value);
+    _applyUpdate(deviceId, 'V${e.virtualPin}', e.value);
   }
 
-  void _onDeviceStatus(DeviceStatusEvent _) {
-    // Could update a device-online map here if needed.
-  }
+  void _onDeviceStatus(DeviceStatusEvent _) {}
 
   void _applyUpdate(int deviceId, String dataKey, double value) {
     final current = Map<int, Map<String, double>>.from(state);
@@ -93,24 +106,19 @@ class DeviceSyncNotifier extends Notifier<PinStateMap> {
     state = current;
   }
 
-  // ── Echo suppression helpers ──────────────────────────────────────────────
+  // ── Echo suppression ──────────────────────────────────────────────────────
 
-  void _registerEcho(int deviceId, String dataKey, double value) {
-    final key = '$deviceId:$dataKey';
-    _echoes[key] = _EchoEntry(value);
-  }
+  void _registerEcho(int deviceId, String dataKey, double value) =>
+      _echoes['$deviceId:$dataKey'] = _EchoEntry(value);
 
   bool _shouldSuppress(int deviceId, String dataKey, double value) {
     final key   = '$deviceId:$dataKey';
     final entry = _echoes[key];
     if (entry == null) return false;
-    if (entry.expired) {
-      _echoes.remove(key);
-      return false;
-    }
+    if (entry.expired) { _echoes.remove(key); return false; }
     if ((entry.value - value).abs() < 0.001) {
       _echoes.remove(key);
-      return true; // this is our echo — discard it
+      return true;
     }
     return false;
   }

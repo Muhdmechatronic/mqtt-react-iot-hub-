@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 export default function SwitchWidget({ title, value, widget, onCommand, settings }) {
   const color      = settings.color          ?? '#0ea5e9';
   const command    = settings.command        ?? 'relay';
-  const onVal      = settings.on_value       ?? '1';
-  const offVal     = settings.off_value      ?? '0';
+  const onVal      = parseFloat(settings.on_value  ?? 1);
+  const offVal     = parseFloat(settings.off_value ?? 0);
   const showLabels = settings.show_labels    ?? false;
   const onLabel    = settings.on_label       ?? 'ON';
   const offLabel   = settings.off_label      ?? 'OFF';
@@ -12,17 +12,18 @@ export default function SwitchWidget({ title, value, widget, onCommand, settings
   const hideTitle  = settings.hide_title     ?? false;
 
   const [on, setOn] = useState(
-    value !== undefined ? String(value) === String(onVal) : false
+    value !== undefined ? parseFloat(value) === onVal : false
   );
 
   useEffect(() => {
-    if (value !== undefined) setOn(String(value) === String(onVal));
+    if (value !== undefined) setOn(parseFloat(value) === onVal);
   }, [value, onVal]);
 
   function toggle() {
-    const next = !on;
+    const next    = !on;
+    const pinVal  = next ? onVal : offVal;
     setOn(next);
-    onCommand(widget.device_id, command, { value: next ? onVal : offVal, state: next ? 1 : 0 }, widget.data_key);
+    onCommand(widget.device_id, command, { value: pinVal }, widget.data_key);
   }
 
   const labelEl = showLabels && (

@@ -20,7 +20,7 @@ class SwitchWidget extends ConsumerWidget {
       final next = isOn ? w.offValue : w.onValue;
       ref
           .read(deviceSyncProvider.notifier)
-          .writePin(w.deviceId!, w.dataKey!, next, widgetId: w.id);
+          .writePin(w.deviceId!, w.dataKey!, next, widgetId: w.id, command: 'relay');
     }
 
     return _WidgetCard(

@@ -19,7 +19,7 @@ export default function SliderWidget({ title, value, widget, onCommand, settings
   }, [value, dragging]);
 
   const sendCommand = useCallback((v) => {
-    onCommand(widget.device_id, command, { value: v }, widget.data_key);
+    onCommand(widget.device_id, command, { value: parseFloat(v) }, widget.data_key);
   }, [widget.device_id, widget.data_key, command, onCommand]);
 
   function handleChange(e) {

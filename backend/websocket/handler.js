@@ -31,6 +31,8 @@ function handler(io) {
       const device = await deviceService.getDeviceByApiKey(api_key);
       if (!device) return socket.emit('error', { message: 'Unknown device' });
 
+      const wasOffline = !device.is_online;
+
       const unified = {
         device_id:  device.id,
         protocol:   'websocket',
@@ -43,6 +45,12 @@ function handler(io) {
       await sensorService.saveSensorData(unified);
       await deviceService.updatePing(device.id);
       io.to(`device:${device.id}`).emit('sensor_update', unified);
+
+      if (wasOffline) {
+        const onlinePayload = { device_id: device.id, is_online: true };
+        io.to(`user:${device.user_id}`).emit('device_status', onlinePayload);
+        io.to(`device:${device.id}`).emit('device_status', onlinePayload);
+      }
 
       // Track which device this socket represents so disconnect can mark it offline.
       if (!socket.data.deviceId) {

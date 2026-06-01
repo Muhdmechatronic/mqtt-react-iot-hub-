@@ -133,12 +133,29 @@ export default function DashboardPage() {
     const deviceIds = [...new Set(widgets.map(w => w.device_id).filter(Boolean))];
     deviceIds.forEach(did => socket.emit('subscribe_device', { device_id: did }));
 
+    // Legacy sensor_update path (HTTP POST, MQTT sensor topic, WebSocket device_data)
     function onSensorUpdate(event) {
       setSensorData(prev => ({
         ...prev,
         [event.device_id]: { ...(prev[event.device_id] || {}), ...event.data },
       }));
       setLastEvent({ ...event, _ts: Date.now() });
+    }
+
+    // Virtual-pin path (MQTT iot/{key}/pin/{n}, socket pin:write)
+    // Payload: { deviceId: string, virtualPin: number, value: any, ... }
+    function onPinUpdate(event) {
+      const devId  = Number(event.deviceId);
+      const pinKey = `V${event.virtualPin}`;
+      setSensorData(prev => ({
+        ...prev,
+        [devId]: { ...(prev[devId] || {}), [pinKey]: event.value },
+      }));
+      setLastEvent({
+        device_id: devId,
+        data:      { [pinKey]: event.value },
+        _ts:       Date.now(),
+      });
     }
 
     function onDeviceStatus({ device_id, is_online }) {
@@ -149,10 +166,12 @@ export default function DashboardPage() {
     }
 
     socket.on('sensor_update', onSensorUpdate);
-    socket.on('device_status',  onDeviceStatus);
+    socket.on('pin:update',    onPinUpdate);
+    socket.on('device_status', onDeviceStatus);
     return () => {
       socket.off('sensor_update', onSensorUpdate);
-      socket.off('device_status',  onDeviceStatus);
+      socket.off('pin:update',    onPinUpdate);
+      socket.off('device_status', onDeviceStatus);
       deviceIds.forEach(did => socket.emit('unsubscribe_device', { device_id: did }));
     };
   }, [widgets, token]);
@@ -164,6 +183,7 @@ export default function DashboardPage() {
 
   /* ── Actions ── */
   async function onCommand(deviceId, command, payload, dataKey) {
+    if (!deviceId) return;
     if (dataKey && payload?.value !== undefined) {
       setSensorData(prev => ({
         ...prev,
@@ -171,8 +191,15 @@ export default function DashboardPage() {
       }));
     }
     try {
-      await api.post('/device/command', { device_id: deviceId, command, payload, data_key: dataKey });
-    } catch { /* optimistic update already applied */ }
+      await api.post('/device/command', {
+        device_id: deviceId,
+        command,
+        payload,
+        data_key: dataKey,
+      });
+    } catch (err) {
+      console.warn('[command] failed:', err?.response?.data?.error || err.message);
+    }
   }
 
   async function saveLayout(layout) {

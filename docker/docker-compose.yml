@@ -69,6 +69,12 @@ services:
       FRONTEND_URL: "*"
       # ── Firebase (backend token verification) ──
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      # ── SMTP (OTP email — set in docker/.env) ──
+      SMTP_HOST:   ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT:   ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER:   ${SMTP_USER}
+      SMTP_PASS:   ${SMTP_PASS}
     ports:
       - "3000:3000"
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { auth, googleProvider, signInWithPopup, isFirebaseConfigured } from '../services/firebase';
-import { Cpu, AlertCircle, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { Cpu, AlertCircle, CheckCircle2, ArrowRight, Loader2, KeyRound } from 'lucide-react';
 
 function GoogleIcon({ size = 18 }) {
   return (
@@ -16,10 +16,66 @@ function GoogleIcon({ size = 18 }) {
   );
 }
 
+/* ── OTP digit boxes ─────────────────────────────────────────────────────── */
+function OTPInput({ value, onChange }) {
+  const digits = value.split('');
+  const refs   = Array.from({ length: 6 }, () => useRef(null));
+
+  function handleKey(i, e) {
+    if (e.key === 'Backspace') {
+      const next = digits.slice(); next[i] = '';
+      onChange(next.join(''));
+      if (i > 0) refs[i - 1].current?.focus();
+      return;
+    }
+    if (!/^\d$/.test(e.key)) return;
+    const next = digits.slice(); next[i] = e.key;
+    onChange(next.join(''));
+    if (i < 5) refs[i + 1].current?.focus();
+  }
+
+  function handlePaste(e) {
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    onChange(pasted.padEnd(6, '').slice(0, 6));
+    refs[Math.min(pasted.length, 5)].current?.focus();
+    e.preventDefault();
+  }
+
+  const baseBox  = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', outline: 'none' };
+  const focusBox = { background: 'rgba(139,92,246,0.07)', borderColor: 'rgba(139,92,246,0.45)', boxShadow: '0 0 0 3px rgba(139,92,246,0.12)' };
+
+  return (
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <input
+          key={i}
+          ref={refs[i]}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digits[i] || ''}
+          onKeyDown={e => handleKey(i, e)}
+          onPaste={handlePaste}
+          onChange={() => {}}
+          className="rounded-xl text-center text-xl font-bold text-slate-200 transition-all duration-200"
+          style={{ width: 44, height: 52, ...baseBox, ...(digits[i] ? { borderColor: 'rgba(139,92,246,0.5)', background: 'rgba(139,92,246,0.08)' } : {}) }}
+          onFocus={e => Object.assign(e.target.style, { ...baseBox, ...focusBox })}
+          onBlur={e  => Object.assign(e.target.style, digits[i]
+            ? { ...baseBox, borderColor: 'rgba(139,92,246,0.5)', background: 'rgba(139,92,246,0.08)' }
+            : baseBox
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── Main page ───────────────────────────────────────────────────────────── */
 export default function RegisterPage() {
+  const [step,    setStep]    = useState('form');   // 'form' | 'otp' | 'done'
   const [form,    setForm]    = useState({ name: '', email: '', password: '' });
+  const [otp,     setOtp]     = useState('');
   const [error,   setError]   = useState('');
-  const [ok,      setOk]      = useState(false);
   const [loading, setLoading] = useState(false);
   const [gLoading, setGLoading] = useState(false);
   const { login }  = useAuth();
@@ -27,11 +83,13 @@ export default function RegisterPage() {
 
   const googleEnabled = isFirebaseConfigured();
 
+  const baseInput  = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', outline: 'none' };
+  const focusInput = { background: 'rgba(139,92,246,0.07)', borderColor: 'rgba(139,92,246,0.45)', boxShadow: '0 0 0 3px rgba(139,92,246,0.12)' };
+
   function onChange(e) { setForm(f => ({ ...f, [e.target.name]: e.target.value })); }
 
   async function handleGoogleSignIn() {
-    setError('');
-    setGLoading(true);
+    setError(''); setGLoading(true);
     try {
       const result   = await signInWithPopup(auth, googleProvider);
       const idToken  = await result.user.getIdToken();
@@ -41,28 +99,34 @@ export default function RegisterPage() {
     } catch (err) {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
       setError(err.response?.data?.error || err.message || 'Google sign-in failed.');
-    } finally {
-      setGLoading(false);
-    }
+    } finally { setGLoading(false); }
   }
 
+  /* Step 1: send OTP to email */
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
-      await api.post('/auth/register', form);
-      setOk(true);
-      setTimeout(() => navigate('/login'), 1500);
+      await api.post('/auth/register-otp', form);
+      setStep('otp');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
-  const baseInput = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', outline: 'none' };
-  const focusInput = { background: 'rgba(139,92,246,0.07)', borderColor: 'rgba(139,92,246,0.45)', boxShadow: '0 0 0 3px rgba(139,92,246,0.12)' };
+  /* Step 2: verify OTP → create account */
+  async function handleVerifyOTP(e) {
+    e.preventDefault();
+    if (otp.length < 6) { setError('Enter all 6 digits.'); return; }
+    setError(''); setLoading(true);
+    try {
+      await api.post('/auth/verify-register', { email: form.email, otp });
+      setStep('done');
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Verification failed');
+    } finally { setLoading(false); }
+  }
 
   return (
     <div className="min-h-screen bg-[#020817] flex items-center justify-center p-4 relative overflow-hidden">
@@ -83,13 +147,20 @@ export default function RegisterPage() {
               <Cpu size={24} className="text-violet-400" />
             </div>
           </div>
-          <h1 className="text-[22px] font-bold text-white tracking-tight">Create account</h1>
-          <p className="text-sm text-slate-400 mt-1">Join the IoT Platform — it's free</p>
+          <h1 className="text-[22px] font-bold text-white tracking-tight">
+            {step === 'otp' ? 'Verify your email' : step === 'done' ? 'Account created!' : 'Create account'}
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            {step === 'otp'
+              ? `Check your email — ${form.email}`
+              : step === 'done'
+              ? 'Redirecting to sign in…'
+              : 'Join the IoT Platform — it\'s free'}
+          </p>
         </div>
 
         <div className="rounded-2xl overflow-hidden relative"
           style={{ background: 'rgba(255,255,255,0.035)', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 28px 72px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.07)' }}>
-
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
 
           <div className="p-7 space-y-5">
@@ -100,67 +171,104 @@ export default function RegisterPage() {
                 <span className="text-[13px] text-red-400 leading-relaxed">{error}</span>
               </div>
             )}
-            {ok && (
+
+            {/* ── Done state ── */}
+            {step === 'done' && (
               <div className="flex items-center gap-2.5 rounded-xl px-4 py-3" style={{ background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.22)' }}>
                 <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
-                <span className="text-[13px] text-emerald-400">Account created! Redirecting…</span>
+                <span className="text-[13px] text-emerald-400">Account created! Redirecting to sign in…</span>
               </div>
             )}
 
-            {googleEnabled && (
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={gLoading || loading}
-                className="w-full flex items-center justify-center gap-3 py-[11px] px-4 rounded-xl text-[14px] font-semibold text-slate-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,.35)' }}
-                onMouseEnter={e => { if (!gLoading) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.2)'; } }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.12)'; }}
-              >
-                {gLoading ? <Loader2 size={17} className="animate-spin" /> : <GoogleIcon size={18} />}
-                {gLoading ? 'Connecting to Google…' : 'Sign up with Google'}
-              </button>
+            {/* ── Step 1: Registration form ── */}
+            {step === 'form' && (
+              <>
+                {googleEnabled && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={gLoading || loading}
+                      className="w-full flex items-center justify-center gap-3 py-[11px] px-4 rounded-xl text-[14px] font-semibold text-slate-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,.35)' }}
+                      onMouseEnter={e => { if (!gLoading) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.2)'; } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.12)'; }}
+                    >
+                      {gLoading ? <Loader2 size={17} className="animate-spin" /> : <GoogleIcon size={18} />}
+                      {gLoading ? 'Connecting to Google…' : 'Sign up with Google'}
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px bg-white/8" />
+                      <span className="text-[11px] font-medium text-slate-600 tracking-wide">or register with email</span>
+                      <div className="flex-1 h-px bg-white/8" />
+                    </div>
+                  </>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {[
+                    { name: 'name',     type: 'text',     label: 'Full name',     placeholder: 'Your name',       auto: 'name' },
+                    { name: 'email',    type: 'email',    label: 'Email address', placeholder: 'you@example.com', auto: 'email' },
+                    { name: 'password', type: 'password', label: 'Password',      placeholder: '8+ characters',   auto: 'new-password', min: 8 },
+                  ].map(f => (
+                    <div key={f.name}>
+                      <label className="block text-[11px] font-semibold text-slate-400 mb-2 tracking-wide uppercase">{f.label}</label>
+                      <input
+                        name={f.name} type={f.type} autoComplete={f.auto} required
+                        minLength={f.min} value={form[f.name]} onChange={onChange}
+                        placeholder={f.placeholder}
+                        className="w-full rounded-xl px-4 py-[11px] text-[14px] text-slate-200 placeholder-slate-600 transition-all duration-200"
+                        style={baseInput}
+                        onFocus={e => Object.assign(e.target.style, { ...baseInput, ...focusInput })}
+                        onBlur={e => Object.assign(e.target.style, baseInput)}
+                      />
+                    </div>
+                  ))}
+                  <p className="text-[12px] text-slate-600">
+                    A 6-digit verification code will be sent to your email.
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={loading || gLoading}
+                    className="w-full flex items-center justify-center gap-2 py-[11px] rounded-xl text-[14px] font-bold text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+                    style={{ background: 'linear-gradient(135deg,#8b5cf6,#a78bfa)', boxShadow: '0 4px 18px rgba(139,92,246,.35)' }}
+                  >
+                    {loading ? <><Loader2 size={15} className="animate-spin" />Sending code…</> : <><span>Send Verification Code</span><ArrowRight size={15} /></>}
+                  </button>
+                </form>
+              </>
             )}
 
-            {googleEnabled && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-white/8" />
-                <span className="text-[11px] font-medium text-slate-600 tracking-wide">or register with email</span>
-                <div className="flex-1 h-px bg-white/8" />
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {[
-                { name: 'name',     type: 'text',     label: 'Full name',     placeholder: 'Your name',       auto: 'name' },
-                { name: 'email',    type: 'email',    label: 'Email address', placeholder: 'you@example.com', auto: 'email' },
-                { name: 'password', type: 'password', label: 'Password',      placeholder: '8+ characters',   auto: 'new-password', min: 8 },
-              ].map(f => (
-                <div key={f.name}>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-2 tracking-wide uppercase">{f.label}</label>
-                  <input
-                    name={f.name} type={f.type} autoComplete={f.auto} required
-                    minLength={f.min} value={form[f.name]} onChange={onChange}
-                    placeholder={f.placeholder}
-                    className="w-full rounded-xl px-4 py-[11px] text-[14px] text-slate-200 placeholder-slate-600 transition-all duration-200"
-                    style={baseInput}
-                    onFocus={e => Object.assign(e.target.style, { ...baseInput, ...focusInput })}
-                    onBlur={e => Object.assign(e.target.style, baseInput)}
-                  />
+            {/* ── Step 2: OTP verification ── */}
+            {step === 'otp' && (
+              <form onSubmit={handleVerifyOTP} className="space-y-5">
+                <div>
+                  <p className="text-[13px] text-slate-400 text-center mb-4">
+                    Enter the 6-digit code sent to<br />
+                    <span className="text-violet-400 font-semibold">{form.email}</span>
+                  </p>
+                  <OTPInput value={otp} onChange={setOtp} />
+                  <p className="text-[12px] text-slate-600 text-center mt-3">
+                    Code expires in 10 minutes.
+                  </p>
                 </div>
-              ))}
-
-              <button
-                type="submit"
-                disabled={loading || ok || gLoading}
-                className="w-full flex items-center justify-center gap-2 py-[11px] rounded-xl text-[14px] font-bold text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-1"
-                style={{ background: 'linear-gradient(135deg,#8b5cf6,#a78bfa)', boxShadow: '0 4px 18px rgba(139,92,246,.35)' }}
-                onMouseEnter={e => { if (!loading && !ok) e.currentTarget.style.boxShadow = '0 6px 26px rgba(139,92,246,.5)'; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(139,92,246,.35)'; }}
-              >
-                {loading ? <><Loader2 size={15} className="animate-spin" />Creating…</> : <><span>Create account</span><ArrowRight size={15} /></>}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={loading || otp.length < 6}
+                  className="w-full flex items-center justify-center gap-2 py-[11px] rounded-xl text-[14px] font-bold text-white transition-all duration-200 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg,#8b5cf6,#a78bfa)', boxShadow: '0 4px 18px rgba(139,92,246,.35)' }}
+                >
+                  {loading ? <><Loader2 size={15} className="animate-spin" />Verifying…</> : <><KeyRound size={14} />Verify &amp; Create Account</>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStep('form'); setOtp(''); setError(''); }}
+                  className="w-full text-center text-[12px] text-slate-600 hover:text-slate-400 transition-colors"
+                >
+                  ← Go back and change details
+                </button>
+              </form>
+            )}
           </div>
         </div>
 

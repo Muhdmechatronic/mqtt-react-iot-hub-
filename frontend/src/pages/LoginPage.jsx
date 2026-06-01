@@ -199,7 +199,12 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-2 tracking-wide uppercase">Password</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-[11px] font-semibold text-slate-400 tracking-wide uppercase">Password</label>
+                  <Link to="/forgot-password" className="text-[11px] text-sky-500 hover:text-sky-400 transition-colors">
+                    Forgot password?
+                  </Link>
+                </div>
                 <input
                   type="password" autoComplete="current-password" required
                   value={password} onChange={e => setPassword(e.target.value)}

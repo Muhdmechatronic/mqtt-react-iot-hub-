@@ -60,9 +60,35 @@ class DashboardListScreen extends ConsumerWidget {
           loading: () => const Center(
               child: CircularProgressIndicator(
                   strokeWidth: 2, color: Color(0xFF0EA5E9))),
-          error: (e, _) => Center(
-              child: Text('Error: $e',
-                  style: const TextStyle(color: Colors.redAccent))),
+          error: (e, _) => ListView(
+              children: [
+                SizedBox(
+                  height: 300,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.cloud_off_outlined,
+                              color: Colors.white24, size: 48),
+                          const SizedBox(height: 14),
+                          const Text('Could not load dashboards',
+                              style: TextStyle(color: Colors.white54, fontSize: 15)),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Check your server connection.\nPull down to retry.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
           data: (dashboards) => dashboards.isEmpty
               ? const _EmptyState()
               : ListView.builder(

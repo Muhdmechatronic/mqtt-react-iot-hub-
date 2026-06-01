@@ -45,6 +45,8 @@ async function handleMessage(topic, buffer) {
   const device = await deviceService.getDeviceByApiKey(deviceIdent);
   if (!device) return console.warn('[MQTT] Unknown device:', deviceIdent);
 
+  const wasOffline = !device.is_online;
+
   // ── Virtual pin write from hardware ───────────────────────────────────────
   // Topic: iot/{api_key}/pin/{virtualPin}
   // Payload: { value, valueType?, originId?, timestamp?, seq? }
@@ -52,8 +54,6 @@ async function handleMessage(topic, buffer) {
     const virtualPin = parseInt(parts[3]);
     if (isNaN(virtualPin) || virtualPin < 0 || virtualPin > 255) return;
 
-    // Hardware sends its MAC address as originId; fallback to api_key.
-    // This prevents the server from reflecting the update back to the same device.
     const originId  = String(payload.originId || deviceIdent);
     const rawValue  = payload.value !== undefined ? payload.value : payload;
     const valueType = payload.valueType || inferValueType(rawValue);
@@ -73,16 +73,18 @@ async function handleMessage(topic, buffer) {
     };
 
     pinSync.setCached(String(device.id), virtualPin, pinPayload);
-    // updatePing keeps last_ping_at fresh so the heartbeat sweeper can detect
-    // when this MQTT device goes silent.
     await deviceService.updatePing(device.id);
-
-    // No originSocketId to exclude — broadcast to every subscriber.
     pinSync.broadcastPinUpdateFromExternal(ioRef, pinPayload);
+
+    if (wasOffline) {
+      const onlinePayload = { device_id: device.id, is_online: true };
+      ioRef.to(`user:${device.user_id}`).emit('device_status', onlinePayload);
+      ioRef.to(`device:${device.id}`).emit('device_status', onlinePayload);
+    }
     return;
   }
 
-  // ── Legacy handlers (unchanged) ───────────────────────────────────────────
+  // ── Legacy sensor / status handlers ──────────────────────────────────────
   const unified = {
     device_id:  device.id,
     protocol:   'mqtt',
@@ -96,6 +98,12 @@ async function handleMessage(topic, buffer) {
     await sensorService.saveSensorData(unified);
     await deviceService.updatePing(device.id);
     ioRef.to(`device:${device.id}`).emit('sensor_update', unified);
+
+    if (wasOffline) {
+      const onlinePayload = { device_id: device.id, is_online: true };
+      ioRef.to(`user:${device.user_id}`).emit('device_status', onlinePayload);
+      ioRef.to(`device:${device.id}`).emit('device_status', onlinePayload);
+    }
   }
 
   if (event_type === 'status') {
@@ -105,8 +113,6 @@ async function handleMessage(topic, buffer) {
     } else {
       await deviceService.markOnline(device.id, false);
     }
-    // Emit to user:{id} room so DevicesPage status badges update, and to
-    // device:{id} room so dashboard widgets also receive the status change.
     const statusPayload = { device_id: device.id, is_online: isOnline };
     ioRef.to(`user:${device.user_id}`).emit('device_status', statusPayload);
     ioRef.to(`device:${device.id}`).emit('device_status', statusPayload);

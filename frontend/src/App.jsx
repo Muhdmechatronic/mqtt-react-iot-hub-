@@ -1,15 +1,16 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import LoginPage        from './pages/LoginPage';
-import RegisterPage     from './pages/RegisterPage';
-import DevicesPage      from './pages/DevicesPage';
-import DashboardPage    from './pages/DashboardPage';
-import ExportPage       from './pages/ExportPage';
-import DatastreamPage   from './pages/DatastreamPage';
-import DeviceConfigPage from './pages/DeviceConfigPage';
-import SandboxPage      from './pages/SandboxPage';
-import Layout           from './components/Layout';
+import LoginPage          from './pages/LoginPage';
+import RegisterPage       from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import DevicesPage        from './pages/DevicesPage';
+import DashboardPage      from './pages/DashboardPage';
+import ExportPage         from './pages/ExportPage';
+import DatastreamPage     from './pages/DatastreamPage';
+import DeviceConfigPage   from './pages/DeviceConfigPage';
+import SandboxPage        from './pages/SandboxPage';
+import Layout             from './components/Layout';
 
 function PrivateRoute({ children }) {
   const { token } = useAuth();
@@ -19,8 +20,9 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login"    element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login"            element={<LoginPage />} />
+      <Route path="/register"         element={<RegisterPage />} />
+      <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index                        element={<Navigate to="/devices" replace />} />
         <Route path="devices"               element={<DevicesPage />} />

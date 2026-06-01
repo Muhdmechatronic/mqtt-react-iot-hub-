@@ -32,6 +32,7 @@ class _SliderWidgetState extends ConsumerState<SliderWidget> {
       w.dataKey!,
       v,
       widgetId: w.id,
+      command: 'pwm',
     );
   }
 

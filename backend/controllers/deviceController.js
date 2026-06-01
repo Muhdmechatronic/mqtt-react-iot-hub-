@@ -30,6 +30,8 @@ async function pushData(req, res) {
     const { data, units, timestamp } = req.body;
     if (!data) return res.status(400).json({ error: 'data object required' });
 
+    const wasOffline = !device.is_online;
+
     const unified = {
       device_id:  device.id,
       protocol:   'http',
@@ -40,12 +42,17 @@ async function pushData(req, res) {
     };
 
     await sensorService.saveSensorData(unified);
-    // updatePing sets both last_seen and last_ping_at so the heartbeat worker
-    // can detect this device going silent even when it only uses HTTP POST.
     await deviceService.updatePing(device.id);
 
     // Emit realtime update to every browser tab subscribed to this device.
     req.io.to(`device:${device.id}`).emit('sensor_update', unified);
+
+    // Notify dashboards that the device came online (only on transition).
+    if (wasOffline) {
+      const onlinePayload = { device_id: device.id, is_online: true };
+      req.io.to(`user:${device.user_id}`).emit('device_status', onlinePayload);
+      req.io.to(`device:${device.id}`).emit('device_status', onlinePayload);
+    }
 
     res.json({ message: 'Data received', device_id: device.id });
   } catch (err) {

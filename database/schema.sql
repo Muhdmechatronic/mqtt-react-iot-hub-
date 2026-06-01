@@ -168,6 +168,35 @@ CREATE TABLE commands (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- PASSWORD RESETS & OTP TOKENS
+-- type: 'password_reset' = 6-digit OTP; 'reset_token' = 64-char hex
+-- ============================================================
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email      VARCHAR(255) NOT NULL,
+  otp        VARCHAR(64)  NOT NULL,
+  type       ENUM('password_reset','reset_token') NOT NULL DEFAULT 'password_reset',
+  expires_at DATETIME     NOT NULL,
+  used       TINYINT(1)   NOT NULL DEFAULT 0,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_type (email, type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- PENDING REGISTRATIONS  (email-verified sign-up queue)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pending_registrations (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name       VARCHAR(100) NOT NULL,
+  email      VARCHAR(255) NOT NULL UNIQUE,
+  password   VARCHAR(255) NOT NULL,
+  otp        VARCHAR(6)   NOT NULL,
+  expires_at DATETIME     NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- ALERTS  (threshold-based, future rule engine)
 -- ============================================================
 CREATE TABLE alerts (
