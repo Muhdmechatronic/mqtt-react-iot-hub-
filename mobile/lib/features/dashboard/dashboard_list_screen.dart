@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/lucide_icons.dart';
 import '../auth/auth_notifier.dart';
 import 'dashboard_notifier.dart';
 
@@ -26,8 +27,9 @@ class DashboardListScreen extends ConsumerWidget {
               border:       Border.all(
                   color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
             ),
-            child: const Icon(Icons.memory_rounded,
-                color: Color(0xFF0EA5E9), size: 16),
+            child: Center(
+              child: LucideIcons.cpu(color: const Color(0xFF0EA5E9), size: 16),
+            ),
           ),
           const SizedBox(width: 10),
           const Text('IoT Platform',
@@ -46,15 +48,14 @@ class DashboardListScreen extends ConsumerWidget {
               ),
             ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white54, size: 20),
+            icon: LucideIcons.logOut(color: Colors.white54, size: 18),
             onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
           ),
         ],
       ),
       body: RefreshIndicator(
         color: const Color(0xFF0EA5E9),
-        onRefresh: () =>
-            ref.read(dashboardListProvider.notifier).refresh(),
+        onRefresh: () => ref.read(dashboardListProvider.notifier).refresh(),
         child: dashAsync.when(
           loading: () => const Center(
               child: CircularProgressIndicator(
@@ -63,7 +64,7 @@ class DashboardListScreen extends ConsumerWidget {
               child: Text('Error: $e',
                   style: const TextStyle(color: Colors.redAccent))),
           data: (dashboards) => dashboards.isEmpty
-              ? _EmptyState()
+              ? const _EmptyState()
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: dashboards.length,
@@ -83,15 +84,16 @@ class DashboardListScreen extends ConsumerWidget {
                             color:        const Color(0xFF0EA5E9).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.dashboard_outlined,
-                              color: Color(0xFF0EA5E9), size: 20),
+                          child: Center(
+                            child: LucideIcons.layoutDashboard(
+                                color: const Color(0xFF0EA5E9), size: 18),
+                          ),
                         ),
                         title: Text(d.name,
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600)),
-                        trailing: const Icon(Icons.chevron_right,
-                            color: Colors.white30),
+                        trailing: LucideIcons.chevronRight(color: Colors.white30),
                         onTap: () => context.push('/dashboard/${d.id}'),
                       ),
                     );
@@ -99,16 +101,18 @@ class DashboardListScreen extends ConsumerWidget {
                 ),
         ),
       ),
-      bottomNavigationBar: AppBottomNav(currentIndex: 0),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
 }
 
 class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
   @override
   Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.dashboard_outlined, color: Colors.white24, size: 48),
+          LucideIcons.layoutDashboard(color: Colors.white24, size: 48),
           const SizedBox(height: 12),
           const Text('No dashboards yet',
               style: TextStyle(color: Colors.white38, fontSize: 15)),
@@ -126,11 +130,11 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BottomNavigationBar(
-        currentIndex:     currentIndex,
-        backgroundColor:  const Color(0xFF1E293B),
-        selectedItemColor: const Color(0xFF0EA5E9),
+        currentIndex:        currentIndex,
+        backgroundColor:     const Color(0xFF1E293B),
+        selectedItemColor:   const Color(0xFF0EA5E9),
         unselectedItemColor: Colors.white30,
-        type:             BottomNavigationBarType.fixed,
+        type:                BottomNavigationBarType.fixed,
         onTap: (i) {
           switch (i) {
             case 0: context.go('/dashboards');
@@ -138,13 +142,14 @@ class AppBottomNav extends StatelessWidget {
             case 2: context.go('/export');
           }
         },
-        items: const [
+        items: [
+          // Icons inherit selectedItemColor / unselectedItemColor via IconTheme
           BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined), label: 'Dashboards'),
+              icon: LucideIcons.layoutDashboard(), label: 'Dashboards'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.memory_outlined), label: 'Devices'),
+              icon: LucideIcons.cpu(), label: 'Devices'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.download_outlined), label: 'Export'),
+              icon: LucideIcons.download(), label: 'Export'),
         ],
       );
 }

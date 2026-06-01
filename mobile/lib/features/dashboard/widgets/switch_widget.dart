@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/lucide_icons.dart';
 import '../../../models/dashboard.dart';
 import '../../sync/sync_notifier.dart';
 
@@ -11,8 +12,8 @@ class SwitchWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final w     = widget;
-    final isOn  = (value ?? w.offValue) == w.onValue;
+    final w    = widget;
+    final isOn = (value ?? w.offValue) == w.onValue;
 
     void toggle() {
       if (w.deviceId == null || w.dataKey == null) return;
@@ -26,7 +27,6 @@ class SwitchWidget extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // ── Big toggle button ────────────────────────────────────────────
           GestureDetector(
             onTap: toggle,
             child: AnimatedContainer(
@@ -46,16 +46,17 @@ class SwitchWidget extends ConsumerWidget {
                 boxShadow: isOn
                     ? [
                         BoxShadow(
-                            color:       const Color(0xFF0EA5E9).withValues(alpha: 0.35),
-                            blurRadius:  20,
+                            color:        const Color(0xFF0EA5E9).withValues(alpha: 0.35),
+                            blurRadius:   20,
                             spreadRadius: 2),
                       ]
                     : [],
               ),
-              child: Icon(
-                Icons.power_settings_new_rounded,
-                color: isOn ? const Color(0xFF0EA5E9) : Colors.white24,
-                size:  28,
+              child: Center(
+                child: LucideIcons.power(
+                  color: isOn ? const Color(0xFF0EA5E9) : Colors.white24,
+                  size: 26,
+                ),
               ),
             ),
           ),
@@ -63,9 +64,9 @@ class SwitchWidget extends ConsumerWidget {
           Text(
             isOn ? w.onLabel : w.offLabel,
             style: TextStyle(
-              color:      isOn ? const Color(0xFF0EA5E9) : Colors.white38,
-              fontSize:   13,
-              fontWeight: FontWeight.w700,
+              color:         isOn ? const Color(0xFF0EA5E9) : Colors.white38,
+              fontSize:      13,
+              fontWeight:    FontWeight.w700,
               letterSpacing: 0.5,
             ),
           ),

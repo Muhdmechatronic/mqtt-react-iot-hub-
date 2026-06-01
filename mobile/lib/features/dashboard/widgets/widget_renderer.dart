@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/lucide_icons.dart';
 import '../../../models/dashboard.dart';
 import '../../sync/sync_notifier.dart';
 import 'gauge_widget.dart';
@@ -7,10 +8,8 @@ import 'led_widget.dart';
 import 'slider_widget.dart';
 import 'switch_widget.dart';
 import 'chart_widget.dart';
+import 'progress_bar_widget.dart';
 
-/// Renders the correct widget component based on [w.kind].
-/// Pulls the current pin value directly from [deviceSyncProvider] so
-/// each card rebuilds only when its own pin changes.
 class WidgetRenderer extends ConsumerWidget {
   const WidgetRenderer({super.key, required this.w});
   final DashboardWidget w;
@@ -29,6 +28,8 @@ class WidgetRenderer extends ConsumerWidget {
       WidgetKind.switchWidget => SwitchWidget(widget: w, value: value),
       WidgetKind.button       => SwitchWidget(widget: w, value: value),
       WidgetKind.chart        => ChartWidget(widget: w),
+      WidgetKind.linechart    => ChartWidget(widget: w),
+      WidgetKind.progressbar  => ProgressBarWidget(widget: w, value: value),
       _                       => _Unknown(title: w.title),
     };
   }
@@ -49,7 +50,7 @@ class _Unknown extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.help_outline, color: Colors.white24, size: 28),
+              LucideIcons.helpCircle(color: Colors.white24, size: 28),
               const SizedBox(height: 6),
               Text(title,
                   style: const TextStyle(color: Colors.white30, fontSize: 12)),

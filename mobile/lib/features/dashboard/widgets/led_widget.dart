@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/lucide_icons.dart';
 import '../../../models/dashboard.dart';
 
 class LedWidget extends StatelessWidget {
@@ -16,8 +17,8 @@ class LedWidget extends StatelessWidget {
     final glow  = on
         ? [
             BoxShadow(
-                color:       const Color(0xFF22C55E).withValues(alpha: 0.4),
-                blurRadius:  24,
+                color:        const Color(0xFF22C55E).withValues(alpha: 0.4),
+                blurRadius:   24,
                 spreadRadius: 4),
           ]
         : <BoxShadow>[];
@@ -31,18 +32,18 @@ class LedWidget extends StatelessWidget {
             duration: const Duration(milliseconds: 300),
             width: 52, height: 52,
             decoration: BoxDecoration(
-              shape:      BoxShape.circle,
-              color:      color,
-              boxShadow:  glow,
+              shape:     BoxShape.circle,
+              color:     color,
+              boxShadow: glow,
             ),
-            child: Icon(Icons.lightbulb,
-                color: on ? Colors.white : Colors.white24, size: 24),
+            child: Center(
+              child: LucideIcons.lightbulb(
+                  color: on ? Colors.white : Colors.white24, size: 22),
+            ),
           ),
           const SizedBox(height: 10),
           Text(
-            on
-                ? (pwm < 255 ? 'ON  $pct%' : 'ON')
-                : 'OFF',
+            on ? (pwm < 255 ? 'ON  $pct%' : 'ON') : 'OFF',
             style: TextStyle(
               color:      on ? Colors.white : Colors.white38,
               fontSize:   13,

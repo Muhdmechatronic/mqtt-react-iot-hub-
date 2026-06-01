@@ -14,16 +14,24 @@ class Dashboard {
 
 // ── Widget types ──────────────────────────────────────────────────────────────
 
-enum WidgetKind { gauge, led, slider, switchWidget, button, chart, unknown }
+enum WidgetKind {
+  gauge, led, slider, switchWidget, button,
+  chart, linechart, progressbar, label, status,
+  unknown,
+}
 
 WidgetKind _kindOf(String? raw) => switch (raw) {
-      'gauge'  => WidgetKind.gauge,
-      'led'    => WidgetKind.led,
-      'slider' => WidgetKind.slider,
-      'switch' => WidgetKind.switchWidget,
-      'button' => WidgetKind.button,
-      'chart'  => WidgetKind.chart,
-      _        => WidgetKind.unknown,
+      'gauge'       => WidgetKind.gauge,
+      'led'         => WidgetKind.led,
+      'slider'      => WidgetKind.slider,
+      'switch'      => WidgetKind.switchWidget,
+      'button'      => WidgetKind.button,
+      'chart'       => WidgetKind.chart,
+      'linechart'   => WidgetKind.linechart,
+      'progressbar' => WidgetKind.progressbar,
+      'label'       => WidgetKind.label,
+      'status'      => WidgetKind.status,
+      _             => WidgetKind.unknown,
     };
 
 class DashboardWidget {
@@ -53,19 +61,27 @@ class DashboardWidget {
       kind == WidgetKind.switchWidget ||
       kind == WidgetKind.button;
 
-  // Gauge helpers
-  double get gaugeMin => (settings['min'] as num?)?.toDouble() ?? 0;
-  double get gaugeMax => (settings['max'] as num?)?.toDouble() ?? 100;
+  // Safe numeric setting — handles both String and num from server
+  double _numSetting(String key, double fallback) {
+    final v = settings[key];
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? fallback;
+    return fallback;
+  }
+
+  // Gauge / progress helpers
+  double get gaugeMin => _numSetting('min', 0);
+  double get gaugeMax => _numSetting('max', 100);
   String get unit     => settings['unit']?.toString() ?? '';
 
   // Slider helpers
-  double get sliderMin  => (settings['min'] as num?)?.toDouble() ?? 0;
-  double get sliderMax  => (settings['max'] as num?)?.toDouble() ?? 100;
-  double get sliderStep => (settings['step'] as num?)?.toDouble() ?? 1;
+  double get sliderMin  => _numSetting('min', 0);
+  double get sliderMax  => _numSetting('max', 100);
+  double get sliderStep => _numSetting('step', 1);
 
   // Switch helpers
-  double get onValue  => (settings['onValue']  as num?)?.toDouble() ?? 1;
-  double get offValue => (settings['offValue'] as num?)?.toDouble() ?? 0;
+  double get onValue  => _numSetting('onValue', 1);
+  double get offValue => _numSetting('offValue', 0);
   String get onLabel  => settings['onLabel']?.toString()  ?? 'ON';
   String get offLabel => settings['offLabel']?.toString() ?? 'OFF';
 

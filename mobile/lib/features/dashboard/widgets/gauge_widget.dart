@@ -21,34 +21,42 @@ class GaugeWidget extends StatelessWidget {
 
     return _WidgetCard(
       title: widget.title,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 130,
-            height: 90,
-            child: CustomPaint(painter: _GaugePainter(frac: frac, color: color)),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${v.toStringAsFixed(1)}${widget.unit.isNotEmpty ? ' ${widget.unit}' : ''}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Fit the gauge arc within whatever space the card gives
+          final gaugeH = (constraints.maxHeight * 0.52).clamp(55.0, 85.0);
+          final gaugeW = gaugeH * 1.45;
+
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('${widget.gaugeMin}',
-                  style: const TextStyle(color: Colors.white38, fontSize: 11)),
-              Text('${widget.gaugeMax}',
-                  style: const TextStyle(color: Colors.white38, fontSize: 11)),
+              SizedBox(
+                width:  gaugeW,
+                height: gaugeH,
+                child: CustomPaint(painter: _GaugePainter(frac: frac, color: color)),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${v.toStringAsFixed(1)}${widget.unit.isNotEmpty ? ' ${widget.unit}' : ''}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('${widget.gaugeMin}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                  Text('${widget.gaugeMax}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -79,7 +87,7 @@ class _GaugePainter extends CustomPainter {
         Paint()
           ..color       = Colors.white10
           ..style       = PaintingStyle.stroke
-          ..strokeWidth = 14
+          ..strokeWidth = 12
           ..strokeCap   = StrokeCap.round);
 
     // Value arc
@@ -88,7 +96,7 @@ class _GaugePainter extends CustomPainter {
           Paint()
             ..color       = color
             ..style       = PaintingStyle.stroke
-            ..strokeWidth = 14
+            ..strokeWidth = 12
             ..strokeCap   = StrokeCap.round);
     }
   }
@@ -107,7 +115,7 @@ class _WidgetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color:        const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(16),
@@ -122,7 +130,7 @@ class _WidgetCard extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Expanded(child: child),
           ],
         ),
