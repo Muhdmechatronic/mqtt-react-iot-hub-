@@ -195,7 +195,7 @@ After this step `docker/certs/` should contain `cert.pem` and `key.pem`. The fil
 ```bash
 # 3. Start all services
 cd docker
-docker compose up -d
+docker compose up -d --build
 
 # 4. Open the dashboard
 #    https://localhost:5173  (HTTPS — cert trusted by your browser via mkcert)
